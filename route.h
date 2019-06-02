@@ -7,6 +7,7 @@
 #include<string_view>
 
 #include "common.h"
+#include "json.h"
 
 namespace busdb {
 
@@ -34,10 +35,16 @@ public:
 
     virtual DistanceType LineDistance() const;
 
+    Json::Object toJsonObject() const;
+
     static std::shared_ptr<Route> ParseRoute(std::string_view route_str);
+
+    static std::shared_ptr<Route> ParseRoute(const Json::Array& data);
 
 protected:
     void ParseFrom(std::string_view input);
+
+    void ParseFrom(const Json::Array& data);
 
     virtual std::string_view Delimiter() const = 0;
 

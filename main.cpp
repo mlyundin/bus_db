@@ -6,9 +6,11 @@
 #include "common.h"
 #include "database.h"
 #include "request.h"
+#include "json.h"
 
 using namespace std;
 using namespace busdb;
+using namespace Json;
 
 template<class RequestType> vector<unique_ptr<RequestType>> ReadRequests(
 		istream& in_stream = cin) {
@@ -24,6 +26,20 @@ template<class RequestType> vector<unique_ptr<RequestType>> ReadRequests(
 			requests.push_back(move(request));
 		}
 	}
+	return requests;
+}
+
+template<class RequestType> vector<unique_ptr<RequestType>>
+ReadJsonRequests(const Array& in_data) {
+	vector<unique_ptr<RequestType>> requests;
+	requests.reserve(in_data.size());
+
+	for(auto& item: in_data) {
+		if (auto request = ParseJsonRequest<RequestType>(item)) {
+			requests.push_back(move(request));
+		}
+	}
+
 	return requests;
 }
 
@@ -48,6 +64,17 @@ void PrintResponses(const vector<unique_ptr<AbstractData>>& responses, ostream& 
 	}
 }
 
+void PrintJsonResponses(const vector<unique_ptr<AbstractData>>& responses, ostream& out_stream = cout) {
+	auto json_responses = Array();
+	json_responses.reserve(responses.size());
+
+	for (const auto& response : responses) {
+		json_responses.push_back(response->toJson());
+	}
+
+	Save(Document(json_responses), out_stream);
+}
+
 int main() {
 
 	DataBase db;
@@ -56,12 +83,23 @@ int main() {
 //	ifstream ifs("test_input.txt");
 //	istream& in = ifs;
 
-	cout.precision(6);
-	const auto modify_requests = ReadRequests<ModifyRequest>(in);
-	const auto read_requests = ReadRequests<ReadRequest>(in);
 
-	ProcessModifyRequest(modify_requests, db);
-	PrintResponses(ProcessReadRequests(read_requests, db));
+	cout.precision(6);
+	auto is_json = false;
+ 	if (is_json) {
+		auto in_data = Load(in);
+		auto& requests = in_data.GetRoot().AsObject();
+		const auto modify_requests = ReadJsonRequests<ModifyRequest>(requests.at("base_requests").AsArray());
+		const auto read_requests   = ReadJsonRequests<ReadRequest>(requests.at("stat_requests").AsArray());
+		ProcessModifyRequest(modify_requests, db);
+		PrintJsonResponses(ProcessReadRequests(read_requests, db));
+ 	} else {
+ 		const auto modify_requests = ReadRequests<ModifyRequest>(in);
+ 		const auto read_requests = ReadRequests<ReadRequest>(in);
+
+ 		ProcessModifyRequest(modify_requests, db);
+ 		PrintResponses(ProcessReadRequests(read_requests, db));
+ 	}
 
 	return 0;
 }

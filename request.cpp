@@ -1,4 +1,5 @@
 #include<unordered_map>
+#include<map>
 #include<string>
 #include<set>
 
@@ -7,34 +8,49 @@
 #include "route.h"
 
 using namespace std;
+using namespace Json;
 
 namespace busdb {
+
+AbstractData::AbstractData(int request_id): request_id(request_id) {}
+
+Node AbstractData::toJson() const {
+	auto res = toJsonObject();
+	res["request_id"] = request_id;
+	return res;
+}
 
 ostream& operator<<(ostream& out, const AbstractData& data) {
 	return data.toStream(out);
 }
 
 struct BusData: AbstractData {
-    string number;
+    string name;
     shared_ptr<Route> route;
 
-    BusData(string number, shared_ptr<Route> route): number(number), route(route){}
+    BusData(int request_id,
+    		string name,
+    		shared_ptr<Route> route): AbstractData(request_id), name(move(name)), route(route){}
 
     ostream& toStream(ostream& out) const override {
-        out<<"Bus "<<number<<": ";
+        out<<"Bus "<<name<<": ";
         if (!route) out<<"not found";
         else out<<*route;
 
         return out;
     }
+
+    Object toJsonObject() const override {
+    	return route ? route->toJsonObject() : Object{{"error_message", "not found"s}};
+    }
 };
 
 struct StopData: AbstractData {
-	string_view name;
+	string name;
 	optional<set<string_view>> buses;
 
-	StopData(string_view name, optional<set<string_view>> buses) :
-			name(name), buses(buses) {
+	StopData(int request_id, string name, optional<set<string_view>> buses) :
+		AbstractData(request_id), name(move(name)), buses(buses) {
 	}
 
 	ostream& toStream(ostream& out) const override {
@@ -51,10 +67,22 @@ struct StopData: AbstractData {
 		}
 		return out;
 	}
+
+    Object toJsonObject() const override {
+		if (!buses)
+			return {{"error_message", "not found"s}};
+
+		auto b = Array();
+		for (const auto& bus : *(buses)) {
+			b.push_back(string(bus));
+		}
+
+		return {{"buses", move(b)}};
+    }
 };
 
 
-Request::Request(Type type): type(type) {}
+Request::Request(Type type): type(type){}
 
 const unordered_map<string_view, Request::Type> STR_TO_REQUEST_TYPE = {
     {"Stop", Request::Type::STOP},
@@ -69,19 +97,28 @@ optional<Request::Type> ConvertRequestTypeFromString(string_view type_str) {
 	return nullopt;
 }
 
+void ReadRequest::ParseFrom(const Object& data) {
+	id = data.at("id").AsInt();
+	ParseOther(data);
+}
+
 struct BusReadRequest: ReadRequest {
 	BusReadRequest() :
 			ReadRequest(Type::BUS) {
 	}
 	void ParseFrom(string_view input) override {
-		number = string(input);
+		name = string(input);
+	}
+
+	void ParseOther(const Object& data) override {
+		name = data.at("name").AsString();
 	}
 
 	unique_ptr<AbstractData> Process(const DataBase& db) const override {
-		return make_unique<BusData>(number, db.GetBusRoute(number));
+		return make_unique<BusData>(id, name, db.GetBusRoute(name));
 	}
 
-	string number;
+	string name;
 };
 
 struct StopReadRequest: ReadRequest {
@@ -91,8 +128,12 @@ struct StopReadRequest: ReadRequest {
 		name = string(input);
 	}
 
+	void ParseOther(const Object& data) override {
+		name = data.at("name").AsString();
+	}
+
 	unique_ptr<AbstractData> Process(const DataBase& db) const override {
-		return make_unique<StopData>(name, db.GetStopBuses(name));
+		return make_unique<StopData>(id, name, db.GetStopBuses(name));
 	}
 
 	string name;
@@ -114,6 +155,17 @@ struct StopModifyRequest: ModifyRequest {
 		}
 	}
 
+	void ParseFrom(const Object& data) override {
+		name = data.at("name").AsString();
+		auto &latitude = data.at("latitude"), &longitude = data.at("longitude");
+		position = {latitude.index() == (int)Node::Type::DoubleType ? latitude.AsDouble() : latitude.AsInt(),
+				longitude.index() == (int)Node::Type::DoubleType ? longitude.AsDouble() : longitude.AsInt()};
+
+		for(auto& item: data.at("road_distances").AsObject()) {
+			distances[item.first] = item.second.AsInt();
+		}
+	}
+
 	void Process(DataBase& db) const override {
 		db.AddStop(name, position, distances);
 	}
@@ -127,15 +179,20 @@ struct BusModifyRequest: ModifyRequest {
 	BusModifyRequest(): ModifyRequest(Type::BUS) {
 	}
 	void ParseFrom(string_view input) override {
-		number = string(ReadToken(input, ": "));
+		name = string(ReadToken(input, ": "));
 		route = Route::ParseRoute(input);
 	}
 
-	void Process(DataBase& db) const override {
-		db.AddBus(number, route);
+	void ParseFrom(const Object& data) override {
+		name = data.at("name").AsString();
+		route = Route::ParseRoute(data.at("stops").AsArray());
 	}
 
-	string number;
+	void Process(DataBase& db) const override {
+		db.AddBus(name, route);
+	}
+
+	string name;
 	shared_ptr<Route> route;
 };
 

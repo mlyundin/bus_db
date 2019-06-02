@@ -13,6 +13,13 @@ void Route::ParseFrom(string_view stops) {
 	}
 }
 
+void Route::ParseFrom(const Json::Array& data) {
+	for(auto& item: data) {
+		auto [it, inserted] = stops_.insert(item.AsString());
+		route_.push_back(it);
+	}
+}
+
 Route::StopsContainer::iterator Route::begin(){return stops_.begin();}
 Route::StopsContainer::iterator Route::end(){return stops_.end();}
 
@@ -36,6 +43,13 @@ DistanceType Route::Distance() const {
 DistanceType Route::LineDistance() const {
 	return Distance(route_.cbegin(), route_.cend(),
 			[this](const string& from, const string& to) {return this->db_->LineDistance(from, to);});
+}
+
+Json::Object Route::toJsonObject() const {
+	auto distance = Distance();
+	return {{"route_length", distance}, {"curvature", distance / LineDistance()},
+		{"stop_count", Stops()}, {"unique_stop_count", UniqueStops()}};
+
 }
 
 ostream& operator<<(ostream& out, const Route& r) {
@@ -102,4 +116,22 @@ shared_ptr<Route> Route::ParseRoute(string_view route_str) {
 
 	return route;
 }
+
+shared_ptr<Route> Route::ParseRoute(const Json::Array& data) {
+	shared_ptr<Route> route = nullptr;
+	auto size = data.size();
+
+	if (size && data[0].AsString() == data[size - 1].AsString()) {
+		route = make_shared<CircleRoute>();
+	}
+	else {
+		route = make_shared<TwoWayRoute>();
+	}
+
+	if (route)
+		route->ParseFrom(data);
+
+	return route;
+}
+
 }
