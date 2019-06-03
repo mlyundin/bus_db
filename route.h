@@ -26,12 +26,12 @@ public:
     StopsContainer::const_iterator end() const;
 
     void SetDB(const DataBase* db);
-    
+
     int UniqueStops() const;
 
     virtual int Stops() const = 0;
 
-    virtual DistanceType Distance() const ;
+    virtual DistanceType Distance() const;
 
     virtual DistanceType LineDistance() const;
 
@@ -48,11 +48,11 @@ protected:
 
     virtual std::string_view Delimiter() const = 0;
 
-    template<class Iterator, typename Function> DistanceType
-    Distance(Iterator begin, Iterator end, Function func) const {
-        DistanceType res = {};
-        if (auto it_to = begin;db_ && it_to != end) {
-            for(auto it_from = it_to++; it_to != end; ++it_to, ++it_from) {
+    template<class Iterator, typename Function> DistanceType Distance(
+            Iterator begin, Iterator end, Function func) const {
+        DistanceType res = { };
+        if (auto it_to = begin; db_ && it_to != end) {
+            for (auto it_from = it_to++; it_to != end; ++it_to, ++it_from) {
                 res += func(*(*it_from), *(*it_to));
             }
         }
