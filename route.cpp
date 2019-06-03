@@ -54,8 +54,13 @@ DistanceType Route::LineDistance() const {
 
 Json::Object Route::toJsonObject() const {
     auto distance = Distance();
-    return { {"route_length", distance}, {"curvature", distance / LineDistance()},
-        {   "stop_count", Stops()}, {"unique_stop_count", UniqueStops()}};
+    Json::Object json = {{"curvature", distance / LineDistance()},
+            {   "stop_count", Stops()}, {"unique_stop_count", UniqueStops()}};
+
+    if (distance - int(distance) > 0) json["route_length"] = distance;
+    else json["route_length"] = int(distance);
+
+    return json;
 
 }
 
@@ -115,7 +120,10 @@ DistanceType TwoWayRoute::Distance() const {
 }
 
 DistanceType TwoWayRoute::LineDistance() const {
-    return Route::LineDistance() * 2;
+    auto distance =
+            [this](const string& from, const string& to) {return this->db_->LineDistance(from, to);};
+    return Route::Distance(route_.cbegin(), route_.cend(), distance)
+            + Route::Distance(route_.crbegin(), route_.crend(), distance);
 }
 
 shared_ptr<Route> Route::ParseRoute(string_view route_str) {
