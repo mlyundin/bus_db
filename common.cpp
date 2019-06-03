@@ -54,23 +54,21 @@ double ConvertToDouble(string_view str) {
 
 int Point::R = 6371000;
 
-Point Point::ToRadians() const {
-    return {latitude * ONE_DEGREE, longitude * ONE_DEGREE};
+void Point::ToRadians() {
+    latitude *= Point::ONE_DEGREE;
+    longitude *= Point::ONE_DEGREE;
 }
 
 Point operator-(const Point& l, const Point& r) {
     return {l.latitude - r.latitude, l.longitude - r.longitude};
 }
 
-DistanceType Distance(const Point& l, const Point& r) {
-    auto l_r = l.ToRadians(), r_r = r.ToRadians();
-    auto diff_r = l_r - r_r;
+DistanceType Distance(Point l, Point r) {
+    l.ToRadians();
+    r.ToRadians();
 
-    auto ans = pow(sin(diff_r.latitude / 2), 2)
-            + cos(l_r.latitude) * cos(r_r.latitude)
-                    * pow(sin(diff_r.longitude / 2), 2);
-
-    return 2 * asin(sqrt(ans)) * Point::R;
+    return acos(sin(l.latitude) * sin(r.latitude) + cos(l.latitude) * cos(r.latitude) *
+                cos(abs(l.longitude - r.longitude))) * Point::R;
 }
 
 }

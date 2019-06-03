@@ -38,11 +38,11 @@ struct Point {
 
     CoordinateType latitude, longitude;
 
-    Point ToRadians() const;
+    void ToRadians();
 };
 
 Point operator-(const Point& l, const Point& r);
 
-DistanceType Distance(const Point& l, const Point& r);
+DistanceType Distance(Point l, Point r);
 }
 ;
