@@ -48,18 +48,6 @@ protected:
 
     virtual std::string_view Delimiter() const = 0;
 
-    template<class Iterator, typename Function> DistanceType Distance(
-            Iterator begin, Iterator end, Function func) const {
-        DistanceType res = { };
-        if (auto it_to = begin; db_ && it_to != end) {
-            for (auto it_from = it_to++; it_to != end; ++it_to, ++it_from) {
-                res += func(*(*it_from), *(*it_to));
-            }
-        }
-
-        return res;
-    }
-
     StopsContainer stops_;
     std::list<StopsContainer::const_iterator> route_;
     const DataBase* db_ = nullptr;

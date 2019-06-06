@@ -5,6 +5,18 @@ using namespace std;
 
 namespace busdb {
 
+template<class Iterator, typename Function> DistanceType Distance(
+        Iterator begin, Iterator end, Function func) {
+    DistanceType res = { };
+    if (auto it_to = begin; it_to != end) {
+        for (auto it_from = it_to++; it_to != end; ++it_to, ++it_from) {
+            res += func(*(*it_from), *(*it_to));
+        }
+    }
+
+    return res;
+}
+
 void Route::ParseFrom(string_view stops) {
     auto delimiter = Delimiter();
     while (stops.size()) {
@@ -43,12 +55,12 @@ int Route::UniqueStops() const {
 }
 
 DistanceType Route::Distance() const {
-    return Distance(route_.cbegin(), route_.cend(),
+    return busdb::Distance(route_.cbegin(), route_.cend(),
             [this](const string& from, const string& to) {return this->db_->Distance(from, to);});
 }
 
 DistanceType Route::LineDistance() const {
-    return Distance(route_.cbegin(), route_.cend(),
+    return busdb::Distance(route_.cbegin(), route_.cend(),
             [this](const string& from, const string& to) {return this->db_->LineDistance(from, to);});
 }
 
@@ -115,15 +127,15 @@ int TwoWayRoute::Stops() const {
 DistanceType TwoWayRoute::Distance() const {
     auto distance =
             [this](const string& from, const string& to) {return this->db_->Distance(from, to);};
-    return Route::Distance(route_.cbegin(), route_.cend(), distance)
-            + Route::Distance(route_.crbegin(), route_.crend(), distance);
+    return busdb::Distance(route_.cbegin(), route_.cend(), distance)
+            + busdb::Distance(route_.crbegin(), route_.crend(), distance);
 }
 
 DistanceType TwoWayRoute::LineDistance() const {
     auto distance =
             [this](const string& from, const string& to) {return this->db_->LineDistance(from, to);};
-    return Route::Distance(route_.cbegin(), route_.cend(), distance)
-            + Route::Distance(route_.crbegin(), route_.crend(), distance);
+    return busdb::Distance(route_.cbegin(), route_.cend(), distance)
+            + busdb::Distance(route_.crbegin(), route_.crend(), distance);
 }
 
 shared_ptr<Route> Route::ParseRoute(string_view route_str) {
