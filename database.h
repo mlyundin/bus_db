@@ -15,6 +15,11 @@ class Route;
 
 class DataBase {
 public:
+    struct Settings {
+        int bus_wait_time;
+        int bus_velocity;
+    };
+
     DataBase() = default;
 
     DistanceType Distance(const std::string& stop1,
@@ -33,7 +38,10 @@ public:
     std::optional<std::set<std::string_view>> GetStopBuses(
             std::string_view stop) const;
 
+    void SetSettings(const Settings& settings);
+
 private:
+    std::optional<Settings> settings = std::nullopt;
     std::unordered_map<std::string, Point> stops_;
     std::unordered_map<std::string, std::shared_ptr<Route>> buses_;
     std::unordered_map<std::string_view, std::set<std::string_view>> stop_buses_;

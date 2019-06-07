@@ -78,19 +78,29 @@ void PrintJsonResponses(const vector<unique_ptr<AbstractData>>& responses,
     Save(Document(json_responses), out_stream);
 }
 
+void ReadSettings(const Object& in_data, DataBase& db) {
+    if(in_data.count("routing_settings")) {
+         auto& settings = in_data.at("routing_settings").AsObject();
+         db.SetSettings({settings.at("bus_wait_time").AsInt(),
+                         settings.at("bus_velocity").AsInt()});
+     }
+}
+
 int main() {
 
     DataBase db;
-// 	istream& in = cin;
+ 	istream& in = cin;
 
-    ifstream ifs("test_input.txt");
-    istream& in = ifs;
+//    ifstream ifs("test_input.txt");
+//    istream& in = ifs;
 
     cout.precision(6);
     auto is_json = true;
     if (is_json) {
         auto in_data = Load(in);
         auto& requests = in_data.GetRoot().AsObject();
+        ReadSettings(requests, db);
+
         const auto modify_requests = ReadJsonRequests<ModifyRequest>(
                 requests.at("base_requests").AsArray());
         const auto read_requests = ReadJsonRequests<ReadRequest>(
