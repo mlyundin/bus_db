@@ -39,7 +39,7 @@ public:
 
     static std::shared_ptr<Route> ParseRoute(std::string_view route_str);
 
-    static std::shared_ptr<Route> ParseRoute(const Json::Array& data);
+    static std::shared_ptr<Route> ParseRoute(const Json::Object& data);
 
 protected:
     void ParseFrom(std::string_view input);

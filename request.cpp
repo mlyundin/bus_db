@@ -192,7 +192,7 @@ struct BusModifyRequest: ModifyRequest {
 
     void ParseFrom(const Object& data) override {
         name = data.at("name").AsString();
-        route = Route::ParseRoute(data.at("stops").AsArray());
+        route = Route::ParseRoute(data);
     }
 
     void Process(DataBase& db) const override {

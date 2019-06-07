@@ -153,18 +153,16 @@ shared_ptr<Route> Route::ParseRoute(string_view route_str) {
     return route;
 }
 
-shared_ptr<Route> Route::ParseRoute(const Json::Array& data) {
+shared_ptr<Route> Route::ParseRoute(const Json::Object& data) {
     shared_ptr<Route> route = nullptr;
-    auto size = data.size();
 
-    if (size && data[0].AsString() == data[size - 1].AsString()) {
+    if (data.at("is_roundtrip").AsBoolean()) {
         route = make_shared<CircleRoute>();
     } else {
         route = make_shared<TwoWayRoute>();
     }
 
-    if (route)
-        route->ParseFrom(data);
+    if (route) route->ParseFrom(data.at("stops").AsArray());
 
     return route;
 }
