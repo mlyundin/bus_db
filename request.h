@@ -26,7 +26,7 @@ std::ostream& operator<<(std::ostream& out, const AbstractData& data);
 
 struct Request {
     enum class Type {
-        BUS, STOP
+        BUS, STOP, ROUTE
     };
 
     Request(Type type);
