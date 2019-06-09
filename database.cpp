@@ -57,7 +57,7 @@ void DataBase::AddBus(string number, shared_ptr<Route> route) {
 
     if (inserted) {
         string_view bus_number = it->first;
-        for (const auto& stop : *(it->second))
+        for (const auto& stop : it->second->UniqueStops())
             stop_buses_[stop].insert(bus_number);
     }
 }

@@ -19,21 +19,15 @@ class Route {
 public:
     Route() = default;
 
-    StopsContainer::iterator begin();
-    StopsContainer::iterator end();
-
-    StopsContainer::const_iterator begin() const;
-    StopsContainer::const_iterator end() const;
-
     void SetDB(const DataBase* db);
 
-    int UniqueStops() const;
+    const StopsContainer& UniqueStops() const;
 
-    virtual int Stops() const = 0;
+    const std::list<StopsContainer::const_iterator>& Stops() const;
 
-    virtual DistanceType Distance() const;
+    DistanceType Distance() const;
 
-    virtual DistanceType LineDistance() const;
+    DistanceType LineDistance() const;
 
     Json::Object toJsonObject() const;
 
@@ -47,6 +41,8 @@ protected:
     void ParseFrom(const Json::Array& data);
 
     virtual std::string_view Delimiter() const = 0;
+
+    virtual void FillRoute() = 0;
 
     StopsContainer stops_;
     std::list<StopsContainer::const_iterator> route_;

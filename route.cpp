@@ -1,6 +1,8 @@
 #include "route.h"
 #include "database.h"
 
+#include <algorithm>
+
 using namespace std;
 
 namespace busdb {
@@ -23,6 +25,7 @@ void Route::ParseFrom(string_view stops) {
         auto [it, inserted] = stops_.insert(string(ReadToken(stops, delimiter)));
         route_.push_back(it);
     }
+    FillRoute();
 }
 
 void Route::ParseFrom(const Json::Array& data) {
@@ -30,28 +33,19 @@ void Route::ParseFrom(const Json::Array& data) {
         auto [it, inserted] = stops_.insert(item.AsString());
         route_.push_back(it);
     }
-}
-
-Route::StopsContainer::iterator Route::begin() {
-    return stops_.begin();
-}
-Route::StopsContainer::iterator Route::end() {
-    return stops_.end();
-}
-
-Route::StopsContainer::const_iterator Route::begin() const {
-    return stops_.begin();
-}
-Route::StopsContainer::const_iterator Route::end() const {
-    return stops_.end();
+    FillRoute();
 }
 
 void Route::SetDB(const DataBase* db) {
     db_ = db;
 }
 
-int Route::UniqueStops() const {
-    return stops_.size();
+const Route::StopsContainer& Route::UniqueStops() const {
+    return stops_;
+}
+
+const std::list<Route::StopsContainer::const_iterator>& Route::Stops() const {
+    return route_;
 }
 
 DistanceType Route::Distance() const {
@@ -67,7 +61,8 @@ DistanceType Route::LineDistance() const {
 Json::Object Route::toJsonObject() const {
     auto distance = Distance();
     Json::Object json = {{"curvature", distance / LineDistance()},
-            {   "stop_count", Stops()}, {"unique_stop_count", UniqueStops()}};
+            {"stop_count", (int)Stops().size()},
+            {"unique_stop_count", (int)UniqueStops().size()}};
 
     if (distance - int(distance) > 0) json["route_length"] = distance;
     else json["route_length"] = int(distance);
@@ -78,7 +73,7 @@ Json::Object Route::toJsonObject() const {
 
 ostream& operator<<(ostream& out, const Route& r) {
     auto distance = r.Distance();
-    return out << r.Stops() << " stops on route, " << r.UniqueStops()
+    return out << r.Stops().size() << " stops on route, " << r.UniqueStops().size()
             << " unique stops, " << int(distance) << " route length, "
             << distance / r.LineDistance() << " curvature";
 }
@@ -89,7 +84,7 @@ public:
 
     virtual string_view Delimiter() const override;
 
-    int Stops() const override;
+    virtual void FillRoute() override {}
 };
 
 class TwoWayRoute: public Route {
@@ -98,11 +93,10 @@ public:
 
     virtual string_view Delimiter() const override;
 
-    int Stops() const override;
-
-    DistanceType Distance() const override;
-
-    DistanceType LineDistance() const override;
+    virtual void FillRoute() override {
+        if (route_.size() >= 2)
+            copy(++route_.rbegin(), route_.rend(), back_inserter(route_));
+    }
 };
 string CircleRoute::delimiter = " > ";
 
@@ -112,30 +106,8 @@ string_view CircleRoute::Delimiter() const {
     return CircleRoute::delimiter;;
 }
 
-int CircleRoute::Stops() const {
-    return route_.size();
-}
-
 string_view TwoWayRoute::Delimiter() const {
     return TwoWayRoute::delimiter;
-}
-
-int TwoWayRoute::Stops() const {
-    return route_.size() * 2 - 1;
-}
-
-DistanceType TwoWayRoute::Distance() const {
-    auto distance =
-            [this](const string& from, const string& to) {return this->db_->Distance(from, to);};
-    return busdb::Distance(route_.cbegin(), route_.cend(), distance)
-            + busdb::Distance(route_.crbegin(), route_.crend(), distance);
-}
-
-DistanceType TwoWayRoute::LineDistance() const {
-    auto distance =
-            [this](const string& from, const string& to) {return this->db_->LineDistance(from, to);};
-    return busdb::Distance(route_.cbegin(), route_.cend(), distance)
-            + busdb::Distance(route_.crbegin(), route_.crend(), distance);
 }
 
 shared_ptr<Route> Route::ParseRoute(string_view route_str) {
