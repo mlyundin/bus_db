@@ -6,8 +6,12 @@
 #include<string_view>
 #include<optional>
 #include<memory>
+#include<tuple>
+#include<list>
 
 #include "common.h"
+#include "graph.h"
+#include "router.h"
 
 namespace busdb {
 
@@ -19,6 +23,13 @@ public:
         int bus_wait_time;
         int bus_velocity;
     };
+
+    enum class RouteItemType {
+        WAIT = 0,
+        BUS
+    };
+
+    using RouteItem = std::tuple<DataBase::RouteItemType, double, std::string_view, int>;
 
     DataBase() = default;
 
@@ -38,15 +49,28 @@ public:
     std::optional<std::set<std::string_view>> GetStopBuses(
             std::string_view stop) const;
 
+    std::tuple<double, std::list<RouteItem>>
+    GetRoute(const std::string& from, const std::string& to) const;
+
     void SetSettings(const Settings& settings);
 
+    void BuildRoutes();
+
 private:
-    std::optional<Settings> settings = std::nullopt;
     std::unordered_map<std::string, Point> stops_;
     std::unordered_map<std::string, std::shared_ptr<Route>> buses_;
     std::unordered_map<std::string_view, std::set<std::string_view>> stop_buses_;
     mutable std::unordered_map<std::string_view,
             std::unordered_map<std::string_view, DistanceType>> distance_hash_;
+
+    std::optional<Settings> settings = std::nullopt;
+    std::unique_ptr<Graph::DirectedWeightedGraph<double>> routes_ = nullptr;
+    std::unique_ptr<Graph::Router<double>> router_ = nullptr;
+
+    std::vector<std::string_view> vertex_to_stop_;
+    std::unordered_map<std::string_view, Graph::VertexId> stop_to_vertex_;
+
+    std::unordered_map<Graph::EdgeId, std::string_view> edge_to_bus_;
 };
 
 }

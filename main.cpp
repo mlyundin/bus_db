@@ -48,6 +48,7 @@ void ProcessModifyRequest(const vector<unique_ptr<ModifyRequest>>& requests,
     for (const auto& request_holder : requests) {
         request_holder->Process(db);
     }
+    db.BuildRoutes();
 }
 
 template<class Request> vector<unique_ptr<AbstractData>> ProcessReadRequests(
@@ -89,7 +90,7 @@ void ReadSettings(const Object& in_data, DataBase& db) {
 int main() {
 
     DataBase db;
- 	istream& in = cin;
+    istream& in = cin;
 
 //    ifstream ifs("test_input.txt");
 //    istream& in = ifs;

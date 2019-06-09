@@ -87,12 +87,10 @@ struct StopData: AbstractData {
 };
 
 struct RouteData: AbstractData {
-    double total_time;
-    using ItemContainer = list<string>;
-    ItemContainer items;
+    tuple<double, list<DataBase::RouteItem>> data;
 
-    RouteData(int request_id, double total_time, ItemContainer items) :
-            AbstractData(request_id), total_time(total_time), items(move(items)) {
+    RouteData(int request_id, tuple<double, list<DataBase::RouteItem>> data) :
+            AbstractData(request_id), data(move(data)) {
     }
 
     ostream& toStream(ostream& out) const override {
@@ -101,8 +99,28 @@ struct RouteData: AbstractData {
     }
 
     Object toJsonObject() const override {
-        return !items.empty() ? Object {{"temp", "temp"s}} : Object { { "error_message",
-                "not found"s } };
+        const auto& [total_time, route] = data;
+        if (total_time < 0) return {{"error_message", "not found"s }};
+
+        Object res  = {{"total_time",  total_time}};
+        Array items;
+        for(const auto& [type, time, name, span_count]: route) {
+            Object item = {{"type", TypeToString(type)}, {"time", time}};
+            if(type == DataBase::RouteItemType::BUS) {
+                item["bus"] = string(name);
+                item["span_count"] = span_count;
+            } else if (type == DataBase::RouteItemType::WAIT) {
+                item["stop_name"] = string(name);
+            }
+            items.push_back(move(item));
+        }
+
+        res["items"] = move(items);
+        return res;
+    }
+
+    string TypeToString(DataBase::RouteItemType type) const {
+        return type == DataBase::RouteItemType::BUS ? "Bus" : "Wait";
     }
 };
 
@@ -180,7 +198,8 @@ struct RouteReadRequest: ReadRequest {
     }
 
     unique_ptr<AbstractData> Process(const DataBase& db) const override {
-        return make_unique<RouteData>(id, 0, RouteData::ItemContainer());
+        return from == to ? make_unique<RouteData>(id, make_tuple(0, list<DataBase::RouteItem>())) :
+                make_unique<RouteData>(id, db.GetRoute(from, to));
     }
 
     string from, to;

@@ -1,11 +1,13 @@
 #include <optional>
 #include <memory>
 #include <string>
+#include <algorithm>
 
 #include "database.h"
 #include "route.h"
 
 using namespace std;
+using namespace Graph;
 
 namespace busdb {
 
@@ -78,8 +80,89 @@ optional<set<string_view>> DataBase::GetStopBuses(string_view stop) const {
     return it->second;
 }
 
+tuple<double, list<DataBase::RouteItem>>
+DataBase::GetRoute(const string& from, const string& to) const {
+    if (!router_) return {-1, {}};
+
+    VertexId v_from = stop_to_vertex_.at(from),
+            v_to = stop_to_vertex_.at(to);
+    auto info = router_->BuildRoute(v_from, v_to);
+
+    if (!info) return {-1, {}};
+
+    list<RouteItem> route;
+    RouteItem current_item = {RouteItemType::WAIT, settings->bus_wait_time, from, 0};
+    for (auto i = 0; i < info->edge_count; ++i) {
+        auto edge_id = router_->GetRouteEdge(info->id, i);
+        const auto& info = routes_->GetEdge(edge_id);
+        if(auto it = edge_to_bus_.find(edge_id); it != edge_to_bus_.end()) {
+            if(get<0>(current_item) == RouteItemType::WAIT) {
+                route.push_back(current_item);
+                current_item = {RouteItemType::BUS, info.weight, it->second, 1};
+            }
+            else {
+                get<1>(current_item) += info.weight;
+                get<3>(current_item) += 1;
+            }
+        } else if (info.to < vertex_to_stop_.size()) {
+            route.push_back(current_item);
+            current_item = {RouteItemType::WAIT, settings->bus_wait_time,
+                    vertex_to_stop_[info.to], 0};
+        }
+    }
+
+    router_->ReleaseRoute(info->id);
+    return {info->weight, move(route)};
+}
+
 void DataBase::SetSettings(const Settings& settings) {
     this->settings = settings;
+}
+
+void DataBase::BuildRoutes() {
+    if (!settings) return;
+
+    double bus_wait_time = settings->bus_wait_time;
+    double bus_velocity  = settings->bus_velocity;
+
+    auto stops_size = stops_.size();
+
+    Graph::VertexId current_vertex_id = {};
+    vertex_to_stop_.reserve(stops_size);
+    vertex_to_stop_.clear();
+    stop_to_vertex_.clear();
+    edge_to_bus_.clear();
+
+    for (const auto& [stop_name, temp]: stops_) {
+        vertex_to_stop_.push_back(stop_name);
+        stop_to_vertex_.insert({stop_name, current_vertex_id++});
+    }
+
+    auto vertex_count = stops_size;
+    for(const auto& [temp, route]: buses_) vertex_count += route->Stops().size();
+    routes_ = make_unique<DirectedWeightedGraph<double>>(vertex_count);
+    for(const auto& [bus_number, route]: buses_) {
+        const auto& stops = route->Stops();
+        auto prev_stop_it = stops.end();
+        for(auto it = stops.begin(); it != stops.end(); ++it) {
+            Graph::VertexId current_stop_id = current_vertex_id++;
+            const auto& stop_name = *(*it);
+
+            auto wait_stop_id = stop_to_vertex_.at(stop_name);
+            routes_->AddEdge({wait_stop_id, current_stop_id, bus_wait_time});
+            routes_->AddEdge({current_stop_id, wait_stop_id, 0.0});
+
+            if (prev_stop_it != stops.end()) {
+                // covert to meters per min
+                auto time = Distance(*(*prev_stop_it), stop_name) / bus_velocity / 1000 * 60;
+                auto edge_id = routes_->AddEdge({current_stop_id - 1, current_stop_id, time});
+                edge_to_bus_.insert({edge_id, bus_number});
+            }
+
+            prev_stop_it = it;
+        }
+    }
+    router_ = make_unique<Router<double>>(*routes_);
 }
 
 }
