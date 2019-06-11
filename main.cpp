@@ -51,11 +51,11 @@ void ProcessModifyRequest(const vector<unique_ptr<ModifyRequest>>& requests,
     db.BuildRoutes();
 }
 
-template<class Request> vector<unique_ptr<AbstractData>> ProcessReadRequests(
-        const vector<unique_ptr<Request>>& requests, const DataBase& db) {
+template<class RequestContainer> vector<unique_ptr<AbstractData>> ProcessReadRequests(
+        const RequestContainer& requests, const DataBase& db) {
     vector<unique_ptr<AbstractData>> responses;
-    for (const auto& request_holder : requests) {
-        responses.push_back(request_holder->Process(db));
+    for (const auto& request : requests) {
+        responses.push_back(request->Process(db));
     }
     return responses;
 }
