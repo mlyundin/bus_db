@@ -68,6 +68,17 @@ template<class RequestContainer> auto ProcessReadRequests(
     return responses;
 }
 
+template<class ResponseContainer> auto ResponsesToDocument(const ResponseContainer& responses) {
+    auto json_responses = Array();
+    json_responses.reserve(responses.size());
+
+    for (const auto& response : responses) {
+        json_responses.push_back(response->toJson());
+    }
+
+    return Document(json_responses);
+}
+
 template<class ResponseContainer>
 void PrintResponses(const ResponseContainer& responses,
         ostream& out_stream = cout) {
@@ -76,22 +87,10 @@ void PrintResponses(const ResponseContainer& responses,
     }
 }
 
-template<class ResponseContainer>
-void PrintJsonResponses(const ResponseContainer& responses,
-        ostream& out_stream = cout) {
-    auto json_responses = Array();
-    json_responses.reserve(responses.size());
-
-    for (const auto& response : responses) {
-        json_responses.push_back(response->toJson());
-    }
-
-    Save(Document(json_responses), out_stream);
-}
-
 int main() {
 
     DataBase db;
+    ostream& out = cout;
 //    istream& in = cin;
 
     ifstream ifs("test_input.txt");
@@ -110,13 +109,15 @@ int main() {
                 requests.at("stat_requests").AsArray());
 
         ProcessModifyRequest(modify_requests, db);
-        PrintJsonResponses(ProcessReadRequests(read_requests, db));
+        auto doc = ResponsesToDocument(ProcessReadRequests(read_requests, db));
+
+        Save(doc, out);
     } else {
         const auto modify_requests = ReadRequests<ModifyRequest>(in);
         const auto read_requests = ReadRequests<ReadRequest>(in);
 
         ProcessModifyRequest(modify_requests, db);
-        PrintResponses(ProcessReadRequests(read_requests, db));
+        PrintResponses(ProcessReadRequests(read_requests, db), out);
     }
 
     return 0;
