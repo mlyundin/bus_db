@@ -12,12 +12,20 @@ using namespace std;
 using namespace busdb;
 using namespace Json;
 
-template<class RequestType> vector<unique_ptr<RequestType>> ReadRequests(
-        istream& in_stream = cin) {
-    const size_t request_count = ReadNumberOnLine<size_t>(in_stream);
 
-    vector<unique_ptr<RequestType>> requests;
-    requests.reserve(request_count);
+void ReadSettings(const Object& in_data, DataBase& db) {
+    if(in_data.count("routing_settings")) {
+         const auto& settings = in_data.at("routing_settings").AsObject();
+         db.SetSettings({settings.at("bus_wait_time").AsInt(),
+                         settings.at("bus_velocity").AsInt()});
+     }
+}
+
+template<class RequestType> auto ReadRequests(
+        istream& in_stream = cin) {
+
+    list<unique_ptr<RequestType>> requests;
+    const size_t request_count = ReadNumberOnLine<size_t>(in_stream);
 
     for (size_t i = 0; i < request_count; ++i) {
         string request_str;
@@ -29,10 +37,9 @@ template<class RequestType> vector<unique_ptr<RequestType>> ReadRequests(
     return requests;
 }
 
-template<class RequestType> vector<unique_ptr<RequestType>> ReadJsonRequests(
+template<class RequestType> auto ReadJsonRequests(
         const Array& in_data) {
-    vector<unique_ptr<RequestType>> requests;
-    requests.reserve(in_data.size());
+    list<unique_ptr<RequestType>> requests;
 
     for (auto& item : in_data) {
         if (auto request = ParseJsonRequest<RequestType>(item)) {
@@ -43,7 +50,8 @@ template<class RequestType> vector<unique_ptr<RequestType>> ReadJsonRequests(
     return requests;
 }
 
-void ProcessModifyRequest(const vector<unique_ptr<ModifyRequest>>& requests,
+template <class RequestContainer>
+void ProcessModifyRequest(const RequestContainer& requests,
         DataBase& db) {
     for (const auto& request_holder : requests) {
         request_holder->Process(db);
@@ -51,23 +59,25 @@ void ProcessModifyRequest(const vector<unique_ptr<ModifyRequest>>& requests,
     db.BuildRoutes();
 }
 
-template<class RequestContainer> vector<unique_ptr<AbstractData>> ProcessReadRequests(
+template<class RequestContainer> auto ProcessReadRequests(
         const RequestContainer& requests, const DataBase& db) {
-    vector<unique_ptr<AbstractData>> responses;
+    list<unique_ptr<AbstractData>> responses;
     for (const auto& request : requests) {
         responses.push_back(request->Process(db));
     }
     return responses;
 }
 
-void PrintResponses(const vector<unique_ptr<AbstractData>>& responses,
+template<class ResponseContainer>
+void PrintResponses(const ResponseContainer& responses,
         ostream& out_stream = cout) {
     for (const auto& response : responses) {
         out_stream << *response << endl;
     }
 }
 
-void PrintJsonResponses(const vector<unique_ptr<AbstractData>>& responses,
+template<class ResponseContainer>
+void PrintJsonResponses(const ResponseContainer& responses,
         ostream& out_stream = cout) {
     auto json_responses = Array();
     json_responses.reserve(responses.size());
@@ -79,21 +89,13 @@ void PrintJsonResponses(const vector<unique_ptr<AbstractData>>& responses,
     Save(Document(json_responses), out_stream);
 }
 
-void ReadSettings(const Object& in_data, DataBase& db) {
-    if(in_data.count("routing_settings")) {
-         auto& settings = in_data.at("routing_settings").AsObject();
-         db.SetSettings({settings.at("bus_wait_time").AsInt(),
-                         settings.at("bus_velocity").AsInt()});
-     }
-}
-
 int main() {
 
     DataBase db;
-    istream& in = cin;
+//    istream& in = cin;
 
-//    ifstream ifs("test_input.txt");
-//    istream& in = ifs;
+    ifstream ifs("test_input.txt");
+    istream& in = ifs;
 
     cout.precision(6);
     auto is_json = true;
