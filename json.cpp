@@ -3,6 +3,7 @@
 #include<sstream>
 #include<stdexcept>
 #include<climits>
+
 using namespace std;
 
 namespace Json {
@@ -112,8 +113,8 @@ Document Load(istream& input) {
 }
 
 ostream& operator<<(ostream& output, const Node& node) {
-    switch (node.index()) {
-    case 0:
+    switch ((Node::Type)node.index()) {
+    case Node::Type::ArrayType:
         output << '[';
 
         if (auto& res = node.AsArray(); !res.empty()) {
@@ -126,7 +127,7 @@ ostream& operator<<(ostream& output, const Node& node) {
         output << ']';
         break;
 
-    case 1:
+    case Node::Type::ObjectType:
         output << '{';
 
         if (auto& res = node.AsObject(); !res.empty()) {
@@ -139,16 +140,16 @@ ostream& operator<<(ostream& output, const Node& node) {
         output << "}\n";
         break;
 
-    case 2:
+    case Node::Type::IntType:
         output << node.AsInt();
         break;
-    case 3:
+    case Node::Type::DoubleType:
         output << node.AsDouble();
         break;
-    case 4:
+    case Node::Type::BooleanType:
         output << (node.AsBoolean() ? "true" : "false");
         break;
-    case 5:
+    case Node::Type::StringType:
         output << '"' << node.AsString() << '"';
         break;
     }
@@ -158,6 +159,59 @@ ostream& operator<<(ostream& output, const Node& node) {
 
 void Save(const Document& document, ostream& output) {
     output << document.GetRoot();
+}
+
+bool EqualWithSkip(const Array& left, const Array& right,
+        optional<unordered_set<string>> attr_to_skip) {
+    if(left.size() != right.size()) return false;
+
+    for(auto i = 0; i < left.size(); ++i) {
+        if (!EqualWithSkip(left[i], right[i], attr_to_skip)) return false;
+    }
+
+    return true;
+}
+
+bool EqualWithSkip(const Object& left, const Object& right,
+        optional<unordered_set<string>> attr_to_skip) {
+    if(left.size() != right.size()) return false;
+
+    for(const auto& [left_name, left_node]: left) {
+        if(auto right_item_it = right.find(left_name); !(attr_to_skip &&
+         attr_to_skip->count(left_name)) &&
+        (right_item_it == right.end() ||
+        !(left_node == right_item_it->second))) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool EqualWithSkip(const Node& left, const Node& right,
+        optional<unordered_set<string>> attr_to_skip) {
+
+    if (left.index() != right.index())
+        return false;
+
+    switch ((Node::Type)left.index()) {
+    case Node::Type::ArrayType:
+        return EqualWithSkip(left.AsArray(), right.AsArray(), attr_to_skip);
+    case Node::Type::ObjectType:
+        return EqualWithSkip(left.AsObject(), right.AsObject(), attr_to_skip);
+    case Node::Type::IntType:
+        return left.AsInt() == right.AsInt();
+    case Node::Type::DoubleType:
+        return abs(left.AsDouble() - right.AsDouble()) < 0.0001;
+    case Node::Type::BooleanType:
+        return left.AsBoolean() == right.AsBoolean();
+    case Node::Type::StringType:
+        return left.AsString() == right.AsString();
+    }
+}
+
+bool operator == (const Node& left, const Node& right) {
+    return EqualWithSkip(left, right);
 }
 
 }

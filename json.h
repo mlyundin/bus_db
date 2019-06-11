@@ -5,6 +5,8 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <unordered_set>
+#include <optional>
 
 namespace Json {
 class Node;
@@ -44,6 +46,11 @@ public:
         return std::get<std::string>(*this);
     }
 };
+
+bool EqualWithSkip(const Node& left, const Node& right,
+        std::optional<std::unordered_set<std::string>> attr_to_skip=std::nullopt);
+
+bool operator == (const Node& left, const Node& right);
 
 class Document {
 public:
