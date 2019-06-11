@@ -91,10 +91,12 @@ int main() {
 
     DataBase db;
     ostream& out = cout;
-//    istream& in = cin;
-
+#ifdef DEBUG
     ifstream ifs("test_input.txt");
     istream& in = ifs;
+#else
+    istream& in = cin;
+#endif
 
     cout.precision(6);
     auto is_json = true;
@@ -111,6 +113,11 @@ int main() {
         ProcessModifyRequest(modify_requests, db);
         auto doc = ResponsesToDocument(ProcessReadRequests(read_requests, db));
 
+#ifdef DEBUG
+        ifstream output("test_output.txt");
+        auto to_skip = unordered_set<string>{"items"};
+        assert(EqualWithSkip(doc.GetRoot(), Load(output).GetRoot(), to_skip));
+#endif
         Save(doc, out);
     } else {
         const auto modify_requests = ReadRequests<ModifyRequest>(in);
