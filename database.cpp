@@ -24,14 +24,7 @@ DistanceType DataBase::Distance(const string& stop1,
         }
     }
 
-    DistanceType res = { };
-    auto it_s1 = stops_.find(stop1), it_s2 = stops_.find(stop2);
-    if (it_s1 != stops_.end() && it_s2 != stops_.end()) {
-        res = distance_hash_[it_s1->first][it_s2->first] = LineDistance(stop1,
-                stop2);
-    }
-
-    return res;
+    return LineDistance(stop1, stop2);
 }
 
 void DataBase::AddStop(string stop, Point location,

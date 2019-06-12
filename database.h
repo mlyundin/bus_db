@@ -60,7 +60,7 @@ private:
     std::unordered_map<std::string, Point> stops_;
     std::unordered_map<std::string, std::shared_ptr<Route>> buses_;
     std::unordered_map<std::string_view, std::set<std::string_view>> stop_buses_;
-    mutable std::unordered_map<std::string_view,
+    std::unordered_map<std::string_view,
             std::unordered_map<std::string_view, DistanceType>> distance_hash_;
 
     std::optional<Settings> settings = std::nullopt;

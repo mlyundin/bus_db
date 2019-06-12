@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 #include <memory>
+#include <future>
 
 #include "common.h"
 #include "database.h"
@@ -24,8 +25,9 @@ void ReadSettings(const Object& in_data, DataBase& db) {
 template<class RequestType> auto ReadRequests(
         istream& in_stream = cin) {
 
-    list<unique_ptr<RequestType>> requests;
     const size_t request_count = ReadNumberOnLine<size_t>(in_stream);
+    vector<unique_ptr<RequestType>> requests;
+    requests.reserve(request_count);
 
     for (size_t i = 0; i < request_count; ++i) {
         string request_str;
@@ -39,7 +41,8 @@ template<class RequestType> auto ReadRequests(
 
 template<class RequestType> auto ReadJsonRequests(
         const Array& in_data) {
-    list<unique_ptr<RequestType>> requests;
+    vector<unique_ptr<RequestType>> requests;
+    requests.reserve(in_data.size());
 
     for (auto& item : in_data) {
         if (auto request = ParseJsonRequest<RequestType>(item)) {
@@ -65,6 +68,26 @@ template<class RequestContainer> auto ProcessReadRequests(
     for (const auto& request : requests) {
         responses.push_back(request->Process(db));
     }
+    return responses;
+}
+
+template<class RequestContainer> auto ProcessReadRequestsParallel(
+        const RequestContainer& requests, const DataBase& db) {
+    list<unique_ptr<AbstractData>> responses;
+    unsigned int nthreads = thread::hardware_concurrency();
+    if (nthreads == 0) nthreads = 4;
+
+    auto size = requests.size();
+    vector<future<list<unique_ptr<AbstractData>>>> futures;
+    for(auto range: Paginate(requests, max<size_t>((size + nthreads -1) / nthreads, 50))) {
+        futures.push_back(async([range, &db](){return ProcessReadRequests(range, db);}));
+    }
+
+
+    for (auto& f : futures) {
+        responses.splice(responses.end(), f.get());
+    }
+
     return responses;
 }
 
@@ -111,7 +134,7 @@ int main() {
                 requests.at("stat_requests").AsArray());
 
         ProcessModifyRequest(modify_requests, db);
-        auto doc = ResponsesToDocument(ProcessReadRequests(read_requests, db));
+        auto doc = ResponsesToDocument(ProcessReadRequestsParallel(read_requests, db));
 
 #ifdef DEBUG
         ifstream output("test_output.txt");
