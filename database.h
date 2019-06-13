@@ -40,7 +40,7 @@ public:
             const std::string& stop2) const;
 
     void AddStop(std::string stop, Point location,
-            const std::unordered_map<std::string, int>& distances);
+            std::list<std::pair<std::string, int>> distances);
 
     void AddBus(std::string number, std::shared_ptr<Route> route);
 

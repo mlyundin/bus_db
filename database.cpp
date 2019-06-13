@@ -35,21 +35,20 @@ DistanceType DataBase::Distance(const string& stop1,
 }
 
 void DataBase::AddStop(string stop, Point location,
-        const unordered_map<string, int>& distances) {
-    stops_[stop] = location;
-    auto it = stops_.find(stop);
+        list<pair<string, int>> distances) {
+    auto [it, inserted] = stops_.insert({move(stop), location});
+    if(!inserted) it->second = location;
 
     string_view stop_name = it->first;
     if (stop_buses_.count(stop_name) == 0) {
         stop_buses_[stop_name];
     }
 
-    for(const auto& [another_stop_name, distance]: distances) {
-        auto [another_it, temp] = stops_.insert( {another_stop_name, {}});
-        distance_hash_[it->first][another_it->first] = distance;
+    for(auto& [another_stop_name, distance]: distances) {
+        auto [another_it, temp] = stops_.insert( {move(another_stop_name), {}});
+        distance_hash_[stop_name][another_it->first] = distance;
 
-        auto& hash = distance_hash_[another_it->first];
-        hash.insert( {it->first, distance});
+        distance_hash_[another_it->first].insert( {stop_name, distance});
     }
 }
 

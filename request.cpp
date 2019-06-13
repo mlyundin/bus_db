@@ -218,7 +218,7 @@ struct StopModifyRequest: ModifyRequest {
         while (!input.empty()) {
             auto temp = ReadToken(input, ", ");
             auto distance = ConvertToInt(ReadToken(temp, "m to "));
-            distances[string(temp)] = distance;
+            distances.push_back({string(temp), distance});
         }
     }
 
@@ -228,18 +228,18 @@ struct StopModifyRequest: ModifyRequest {
         position = {latitude.index() == (int)Node::Type::DoubleType ? latitude.AsDouble() : latitude.AsInt(),
             longitude.index() == (int)Node::Type::DoubleType ? longitude.AsDouble() : longitude.AsInt()};
 
-        for (auto& item : data.at("road_distances").AsObject()) {
-            distances[item.first] = item.second.AsInt();
+        for (auto& [stop_name, distance] : data.at("road_distances").AsObject()) {
+            distances.push_back({stop_name, distance.AsInt()});
         }
     }
 
     void Process(DataBase& db) const override {
-        db.AddStop(name, position, distances);
+        db.AddStop(move(name), position, move(distances));
     }
 
     string name;
     Point position;
-    unordered_map<string, int> distances;
+    list<pair<string, int>> distances;
 };
 
 struct BusModifyRequest: ModifyRequest {
@@ -257,7 +257,7 @@ struct BusModifyRequest: ModifyRequest {
     }
 
     void Process(DataBase& db) const override {
-        db.AddBus(name, route);
+        db.AddBus(move(name), move(route));
     }
 
     string name;
