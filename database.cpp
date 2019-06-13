@@ -2,9 +2,11 @@
 #include <memory>
 #include <string>
 #include <algorithm>
+#include <tuple>
 
 #include "database.h"
 #include "route.h"
+#include "code_profile.h"
 
 using namespace std;
 using namespace Graph;
@@ -78,35 +80,40 @@ optional<set<string_view>> DataBase::GetStopBuses(string_view stop) const {
 
     return it->second;
 }
+Graph::VertexId DataBase::GetWaitStopVertexId(std::string_view stop) const{
+    if(auto it = stop_to_vertex_.find(stop); it != stop_to_vertex_.end())
+         return it->second + stops_.size();
+     return -1;
+}
 
 tuple<double, list<DataBase::RouteItem>>
 DataBase::GetRoute(const string& from, const string& to) const {
     if (!router_) return {-1, {}};
+    if (from == to) return {0, {}};
 
-    VertexId v_from = stop_to_vertex_.at(from),
-            v_to = stop_to_vertex_.at(to);
+    VertexId v_from = GetWaitStopVertexId(from),
+             v_to = GetWaitStopVertexId(to);
     auto info = router_->BuildRoute(v_from, v_to);
 
     if (!info) return {-1, {}};
 
+    // first stops_.size() edges are wait bus edges
+    auto start_edge_id = stops_.size();
+
     list<RouteItem> route;
-    RouteItem current_item = {RouteItemType::WAIT, settings->bus_wait_time, from, 0};
+    assert(info->edge_count >= 2);
     for (auto i = 0; i < info->edge_count; ++i) {
         auto edge_id = router_->GetRouteEdge(info->id, i);
+
         const auto& info = routes_->GetEdge(edge_id);
-        if(auto it = edge_to_bus_.find(edge_id); it != edge_to_bus_.end()) {
-            if(get<0>(current_item) == RouteItemType::WAIT) {
-                route.push_back(current_item);
-                current_item = {RouteItemType::BUS, info.weight, it->second, 1};
-            }
-            else {
-                get<1>(current_item) += info.weight;
-                get<3>(current_item) += 1;
-            }
-        } else if (info.to < vertex_to_stop_.size()) {
-            route.push_back(current_item);
-            current_item = {RouteItemType::WAIT, settings->bus_wait_time,
-                    vertex_to_stop_[info.to], 0};
+
+        if (i % 2 == 0) {
+            route.push_back({RouteItemType::WAIT, info.weight,
+                vertex_to_stop_[info.to], 0});
+        } else {
+            assert(edge_id >= start_edge_id);
+            const auto& [bus_number, span_count] = edge_to_bus_[edge_id - start_edge_id];
+            route.push_back({RouteItemType::BUS, info.weight, bus_number, span_count});
         }
     }
 
@@ -126,41 +133,56 @@ void DataBase::BuildRoutes() {
 
     auto stops_size = stops_.size();
 
-    Graph::VertexId current_vertex_id = {};
     vertex_to_stop_.reserve(stops_size);
     vertex_to_stop_.clear();
     stop_to_vertex_.clear();
     edge_to_bus_.clear();
 
+    routes_ = make_unique<DirectedWeightedGraph<double>>(stops_.size() * 2);
+    Graph::VertexId current_vertex_id = {};
     for (const auto& [stop_name, temp]: stops_) {
+        routes_->AddEdge({current_vertex_id + stops_size, current_vertex_id, bus_wait_time});
+
         vertex_to_stop_.push_back(stop_name);
         stop_to_vertex_.insert({stop_name, current_vertex_id++});
     }
 
-    auto vertex_count = stops_size;
-    for(const auto& [temp, route]: buses_) vertex_count += route->Stops().size();
-    routes_ = make_unique<DirectedWeightedGraph<double>>(vertex_count);
+    vector<tuple<string_view, int, Edge<double>>> edge_hash(stops_size * stops_size,
+            {{}, {}, {}});
     for(const auto& [bus_number, route]: buses_) {
         const auto& stops = route->Stops();
-        auto prev_stop_it = stops.end();
-        for(auto it = stops.begin(); it != stops.end(); ++it) {
-            Graph::VertexId current_stop_id = current_vertex_id++;
-            const auto& stop_name = *(*it);
+        if (stops.size() < 2) continue;
 
-            auto wait_stop_id = stop_to_vertex_.at(stop_name);
-            routes_->AddEdge({wait_stop_id, current_stop_id, bus_wait_time});
-            routes_->AddEdge({current_stop_id, wait_stop_id, 0.0});
+        auto end = --stops.end();
+        for(auto it_from = stops.begin(); it_from != end; ++it_from) {
+            auto v_from = stop_to_vertex_[*(*it_from)];
+            auto span_count = 0;
+            double distance = 0;
 
-            if (prev_stop_it != stops.end()) {
-                // covert to meters per min
-                auto time = Distance(*(*prev_stop_it), stop_name) / bus_velocity / 1000 * 60;
-                auto edge_id = routes_->AddEdge({current_stop_id - 1, current_stop_id, time});
-                edge_to_bus_.insert({edge_id, bus_number});
+            auto begin = it_from;
+            for(auto it_to = ++begin, it_prev = it_from; it_to != stops.end(); ++it_to, ++it_prev) {
+                distance += Distance(*(*it_prev), *(*it_to));
+                span_count += 1;
+                double time = distance / bus_velocity / 1000 * 60;
+
+                auto v_to = stop_to_vertex_[*(*it_to)];
+                auto edge_hash_idx = v_from * stops_size + v_to;
+                auto& [edge_bus_number, edge_span_count, edge] = edge_hash[edge_hash_idx];
+                if (edge_span_count == 0 || edge.weight > time) {
+                    edge = {v_from, v_to + stops_size, time};
+                    edge_bus_number = bus_number;
+                    edge_span_count = span_count;
+                }
             }
-
-            prev_stop_it = it;
         }
     }
+
+    for (const auto& [edge_bus_number, edge_span_count, edge]: edge_hash) {
+        if (edge_span_count == 0) continue;
+        routes_->AddEdge(edge);
+        edge_to_bus_.emplace_back(edge_bus_number, edge_span_count);
+    }
+
     router_ = make_unique<Router<double>>(*routes_);
 }
 

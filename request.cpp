@@ -198,8 +198,7 @@ struct RouteReadRequest: ReadRequest {
     }
 
     unique_ptr<AbstractData> Process(const DataBase& db) const override {
-        return from == to ? make_unique<RouteData>(id, make_tuple(0, list<DataBase::RouteItem>())) :
-                make_unique<RouteData>(id, db.GetRoute(from, to));
+        return make_unique<RouteData>(id, db.GetRoute(from, to));
     }
 
     string from, to;

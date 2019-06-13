@@ -70,7 +70,9 @@ private:
     std::vector<std::string_view> vertex_to_stop_;
     std::unordered_map<std::string_view, Graph::VertexId> stop_to_vertex_;
 
-    std::unordered_map<Graph::EdgeId, std::string_view> edge_to_bus_;
+    std::vector<std::pair<std::string_view, int>> edge_to_bus_;
+
+    Graph::VertexId GetWaitStopVertexId(std::string_view stop) const;
 };
 
 }

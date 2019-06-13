@@ -7,6 +7,7 @@
 #include "database.h"
 #include "request.h"
 #include "json.h"
+#include "code_profile.h"
 
 using namespace std;
 using namespace busdb;
@@ -39,6 +40,7 @@ template<class RequestType> auto ReadRequests(
 
 template<class RequestType> auto ReadJsonRequests(
         const Array& in_data) {
+    LOG_DURATION("ReadJsonRequests");
     list<unique_ptr<RequestType>> requests;
 
     for (auto& item : in_data) {
@@ -53,14 +55,20 @@ template<class RequestType> auto ReadJsonRequests(
 template <class RequestContainer>
 void ProcessModifyRequest(const RequestContainer& requests,
         DataBase& db) {
-    for (const auto& request_holder : requests) {
-        request_holder->Process(db);
+    {
+        TotalDuration process(" Process Modify Request");
+        for (const auto& request_holder : requests) {
+            ADD_DURATION(process);
+            request_holder->Process(db);
+        }
     }
+    LOG_DURATION("BuildRoutes");
     db.BuildRoutes();
 }
 
 template<class RequestContainer> auto ProcessReadRequests(
         const RequestContainer& requests, const DataBase& db) {
+    LOG_DURATION("ProcessReadRequests");
     list<unique_ptr<AbstractData>> responses;
     for (const auto& request : requests) {
         responses.push_back(request->Process(db));
@@ -69,6 +77,7 @@ template<class RequestContainer> auto ProcessReadRequests(
 }
 
 template<class ResponseContainer> auto ResponsesToDocument(const ResponseContainer& responses) {
+    LOG_DURATION("ResponsesToDocument");
     auto json_responses = Array();
     json_responses.reserve(responses.size());
 
@@ -89,6 +98,7 @@ void PrintResponses(const ResponseContainer& responses,
 
 int main() {
 
+    LOG_DURATION("Total")
     DataBase db;
     ostream& out = cout;
 #ifdef DEBUG
@@ -111,6 +121,7 @@ int main() {
                 requests.at("stat_requests").AsArray());
 
         ProcessModifyRequest(modify_requests, db);
+
         auto doc = ResponsesToDocument(ProcessReadRequests(read_requests, db));
 
 #ifdef DEBUG
