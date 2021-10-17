@@ -195,18 +195,18 @@ bool EqualWithSkip(const Node& left, const Node& right,
         return false;
 
     switch ((Node::Type)left.index()) {
-    case Node::Type::ArrayType:
-        return EqualWithSkip(left.AsArray(), right.AsArray(), attr_to_skip);
-    case Node::Type::ObjectType:
-        return EqualWithSkip(left.AsObject(), right.AsObject(), attr_to_skip);
-    case Node::Type::IntType:
-        return left.AsInt() == right.AsInt();
-    case Node::Type::DoubleType:
-        return abs(left.AsDouble() - right.AsDouble()) < 0.0001;
-    case Node::Type::BooleanType:
-        return left.AsBoolean() == right.AsBoolean();
-    case Node::Type::StringType:
-        return left.AsString() == right.AsString();
+        case Node::Type::ArrayType:
+            return EqualWithSkip(left.AsArray(), right.AsArray(), attr_to_skip);
+        case Node::Type::ObjectType:
+            return EqualWithSkip(left.AsObject(), right.AsObject(), attr_to_skip);
+        case Node::Type::IntType:
+            return left.AsInt() == right.AsInt();
+        case Node::Type::DoubleType:
+            return abs(left.AsDouble() - right.AsDouble()) < 0.0001;
+        case Node::Type::BooleanType:
+            return left.AsBoolean() == right.AsBoolean();
+        case Node::Type::StringType:
+            return left.AsString() == right.AsString();
     }
 }
 

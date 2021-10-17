@@ -109,8 +109,7 @@ int main() {
 #endif
 
     cout.precision(6);
-    auto is_json = true;
-    if (is_json) {
+    if (auto is_json = true; is_json) {
         auto in_data = Load(in);
         auto& requests = in_data.GetRoot().AsObject();
         ReadSettings(requests, db);
