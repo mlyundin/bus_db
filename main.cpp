@@ -9,7 +9,6 @@
 #include "include/json.h"
 #include "include/code_profile.h"
 
-using namespace std;
 using namespace busdb;
 using namespace Json;
 
@@ -22,14 +21,13 @@ void ReadSettings(const Object& in_data, DataBase& db) {
      }
 }
 
-template<class RequestType> auto ReadRequests(
-        istream& in_stream = cin) {
-
-    list<unique_ptr<RequestType>> requests;
+template<class RequestType>
+auto ReadRequests(std::istream& in_stream = std::cin) {
+    std::list<std::unique_ptr<RequestType>> requests;
     const size_t request_count = ReadNumberOnLine<size_t>(in_stream);
 
     for (size_t i = 0; i < request_count; ++i) {
-        string request_str;
+        std::string request_str;
         getline(in_stream, request_str);
         if (auto request = ParseRequest<RequestType>(request_str)) {
             requests.push_back(move(request));
@@ -38,10 +36,10 @@ template<class RequestType> auto ReadRequests(
     return requests;
 }
 
-template<class RequestType> auto ReadJsonRequests(
-        const Array& in_data) {
+template<class RequestType>
+auto ReadJsonRequests(const Array& in_data) {
     LOG_DURATION("ReadJsonRequests");
-    list<unique_ptr<RequestType>> requests;
+    std::list<std::unique_ptr<RequestType>> requests;
 
     for (auto& item : in_data) {
         if (auto request = ParseJsonRequest<RequestType>(item)) {
@@ -53,8 +51,7 @@ template<class RequestType> auto ReadJsonRequests(
 }
 
 template <class RequestContainer>
-void ProcessModifyRequest(const RequestContainer& requests,
-        DataBase& db) {
+void ProcessModifyRequest(const RequestContainer& requests, DataBase& db) {
     {
         TotalDuration process(" Process Modify Request");
         for (const auto& request_holder : requests) {
@@ -62,21 +59,25 @@ void ProcessModifyRequest(const RequestContainer& requests,
             request_holder->Process(db);
         }
     }
-    LOG_DURATION("BuildRoutes");
-    db.BuildRoutes();
+    {
+        LOG_DURATION("BuildRoutes");
+        db.BuildRoutes();
+    }
+
 }
 
 template<class RequestContainer> auto ProcessReadRequests(
         const RequestContainer& requests, const DataBase& db) {
     LOG_DURATION("ProcessReadRequests");
-    list<unique_ptr<AbstractData>> responses;
-    for (const auto& request : requests) {
+    std::list<std::unique_ptr<AbstractData>> responses;
+    for (const auto& request: requests) {
         responses.push_back(request->Process(db));
     }
     return responses;
 }
 
-template<class ResponseContainer> auto ResponsesToDocument(const ResponseContainer& responses) {
+template<class ResponseContainer>
+auto ResponsesToDocument(const ResponseContainer& responses) {
     LOG_DURATION("ResponsesToDocument");
     auto json_responses = Array();
     json_responses.reserve(responses.size());
@@ -90,9 +91,9 @@ template<class ResponseContainer> auto ResponsesToDocument(const ResponseContain
 
 template<class ResponseContainer>
 void PrintResponses(const ResponseContainer& responses,
-        ostream& out_stream = cout) {
+                    std::ostream& out_stream = std::cout) {
     for (const auto& response : responses) {
-        out_stream << *response << endl;
+        out_stream << *response << std::endl;
     }
 }
 
@@ -100,15 +101,15 @@ int main() {
 
     LOG_DURATION("Total")
     DataBase db;
-    ostream& out = cout;
+    std::ostream& out = std::cout;
 #ifdef DEBUG
-    ifstream ifs("test_input.txt");
-    istream& in = ifs;
+    std::ifstream ifs("test_input.txt");
+    std::istream& in = ifs;
 #else
-    istream& in = cin;
+    std::istream& in = std::cin;
 #endif
 
-    cout.precision(6);
+    std::cout.precision(6);
     if (auto is_json = true; is_json) {
         auto in_data = Load(in);
         auto& requests = in_data.GetRoot().AsObject();
@@ -124,9 +125,8 @@ int main() {
         auto doc = ResponsesToDocument(ProcessReadRequests(read_requests, db));
 
 #ifdef DEBUG
-        ifstream output("test_output.txt");
-        auto to_skip = unordered_set<string>{"items"};
-        assert(EqualWithSkip(doc.GetRoot(), Load(output).GetRoot(), to_skip));
+        std::ifstream output("test_output.txt");
+        assert(EqualWithSkip(doc, Load(output), std::unordered_set<std::string>{"items"}));
 #endif
         Save(doc, out);
     } else {

@@ -210,6 +210,11 @@ bool EqualWithSkip(const Node& left, const Node& right,
     }
 }
 
+bool EqualWithSkip(const Document& left, const Document& right,
+                   optional<unordered_set<string>> attr_to_skip) {
+    return EqualWithSkip(left.GetRoot(), right.GetRoot(), attr_to_skip);
+}
+
 bool operator == (const Node& left, const Node& right) {
     return EqualWithSkip(left, right);
 }
