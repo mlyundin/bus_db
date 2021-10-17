@@ -1,4 +1,4 @@
-#include "code_profile.h"
+#include "../include/code_profile.h"
 #include <iostream>
 #include <sstream>
 

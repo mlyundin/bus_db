@@ -3,11 +3,11 @@
 #include <vector>
 #include <memory>
 
-#include "common.h"
-#include "database.h"
-#include "request.h"
-#include "json.h"
-#include "code_profile.h"
+#include "include/common.h"
+#include "include/database.h"
+#include "include/request.h"
+#include "include/json.h"
+#include "include/code_profile.h"
 
 using namespace std;
 using namespace busdb;
