@@ -29,7 +29,7 @@ public:
 
     DistanceType LineDistance() const;
 
-    Json::Object toJsonObject() const;
+    Json::Object ToJsonObject() const;
 
     static std::shared_ptr<Route> ParseRoute(std::string_view route_str);
 
@@ -38,7 +38,7 @@ public:
 protected:
     void ParseFrom(std::string_view input);
 
-    void ParseFrom(const Json::Array& data);
+    void ParseFrom(const Json::Object& data);
 
     virtual std::string_view Delimiter() const = 0;
 

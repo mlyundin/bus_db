@@ -33,7 +33,7 @@ struct BusData: AbstractData {
     }
 
     Object toJsonObject() const override {
-        return route ? route->toJsonObject() : Object { { "error_message",
+        return route ? route->ToJsonObject() : Object {{"error_message",
                                                                 "not found"s } };
     }
 };

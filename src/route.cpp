@@ -63,8 +63,8 @@ void Route::ParseFrom(std::string_view stops) {
     FillRoute();
 }
 
-void Route::ParseFrom(const Json::Array& data) {
-    for (auto& item : data) {
+void Route::ParseFrom(const Json::Object& data) {
+    for (const auto& item : data.at("stops").AsArray()) {
         auto [it, inserted] = stops_.insert(item.AsString());
         route_.push_back(it);
     }
@@ -93,7 +93,7 @@ DistanceType Route::LineDistance() const {
                       [this](const auto& from, const auto& to) {return this->db_->LineDistance(from, to);});
 }
 
-Json::Object Route::toJsonObject() const {
+Json::Object Route::ToJsonObject() const {
     auto distance = Distance();
     Json::Object json = {{"curvature", distance / LineDistance()},
             {"stop_count", (int)Stops().size()},
@@ -136,7 +136,7 @@ std::shared_ptr<Route> Route::ParseRoute(const Json::Object& data) {
         route = std::make_shared<TwoWayRoute>();
     }
 
-    route->ParseFrom(data.at("stops").AsArray());
+    route->ParseFrom(data);
 
     return route;
 }
