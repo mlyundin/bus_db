@@ -8,18 +8,15 @@
 #include "route.h"
 #include "code_profile.h"
 
-using namespace std;
 using namespace Graph;
 
 namespace busdb {
 
-DistanceType DataBase::LineDistance(const string& stop1,
-        const string& stop2) const {
+DistanceType DataBase::LineDistance(const std::string& stop1, const std::string& stop2) const {
     return busdb::Distance(stops_.at(stop1), stops_.at(stop2));
 }
 
-DistanceType DataBase::Distance(const string& stop1,
-        const string& stop2) const {
+DistanceType DataBase::Distance(const std::string& stop1, const std::string& stop2) const {
     if (auto it1 = distance_hash_.find(stop1); it1 != distance_hash_.end()) {
         if (auto it2 = it1->second.find(stop2); it2 != it1->second.end()) {
             return it2->second;
@@ -36,12 +33,12 @@ DistanceType DataBase::Distance(const string& stop1,
     return res;
 }
 
-void DataBase::AddStop(string stop, Point location,
-        list<pair<string, int>> distances) {
+void DataBase::AddStop(std::string stop, Point location,
+                       std::list<std::pair<std::string, int>> distances) {
     auto [it, inserted] = stops_.insert({move(stop), location});
     if(!inserted) it->second = location;
 
-    string_view stop_name = it->first;
+    std::string_view stop_name = it->first;
     if (stop_buses_.count(stop_name) == 0) {
         stop_buses_[stop_name];
     }
@@ -54,29 +51,29 @@ void DataBase::AddStop(string stop, Point location,
     }
 }
 
-void DataBase::AddBus(string number, shared_ptr<Route> route) {
+void DataBase::AddBus(std::string number, std::shared_ptr<Route> route) {
     route->SetDB(this);
     auto [it, inserted] = buses_.insert( {move(number), move(route)});
 
     if (inserted) {
-        string_view bus_number = it->first;
+        std::string_view bus_number = it->first;
         for (const auto& stop : it->second->UniqueStops())
             stop_buses_[stop].insert(bus_number);
     }
 }
 
-shared_ptr<Route> DataBase::GetBusRoute(const string& number) const {
-    shared_ptr<Route> res = nullptr;
+std::shared_ptr<Route> DataBase::GetBusRoute(const std::string& number) const {
+    std::shared_ptr<Route> res = nullptr;
     if (auto it = buses_.find(number); it != buses_.end())
         res = it->second;
 
     return res;
 }
 
-optional<set<string_view>> DataBase::GetStopBuses(string_view stop) const {
+std::optional<std::set<std::string_view>> DataBase::GetStopBuses(std::string_view stop) const {
     auto it = stop_buses_.find(stop);
     if (it == stop_buses_.end())
-        return nullopt;
+        return std::nullopt;
 
     return it->second;
 }
@@ -86,8 +83,8 @@ Graph::VertexId DataBase::GetWaitStopVertexId(std::string_view stop) const{
      return -1;
 }
 
-tuple<double, list<DataBase::RouteItem>>
-DataBase::GetRoute(const string& from, const string& to) const {
+std::tuple<double, std::list<DataBase::RouteItem>>
+DataBase::GetRoute(const std::string& from, const std::string& to) const {
     if (!router_) return {-1, {}};
     if (from == to) return {0, {}};
 
@@ -100,7 +97,7 @@ DataBase::GetRoute(const string& from, const string& to) const {
     // first stops_.size() edges are wait bus edges
     auto start_edge_id = stops_.size();
 
-    list<RouteItem> route;
+    std::list<RouteItem> route;
     assert(info->edge_count >= 2);
     for (auto i = 0; i < info->edge_count; ++i) {
         auto edge_id = router_->GetRouteEdge(info->id, i);
@@ -138,7 +135,7 @@ void DataBase::BuildRoutes() {
     stop_to_vertex_.clear();
     edge_to_bus_.clear();
 
-    routes_ = make_unique<DirectedWeightedGraph<double>>(stops_.size() * 2);
+    routes_ = std::make_unique<DirectedWeightedGraph<double>>(stops_.size() * 2);
     Graph::VertexId current_vertex_id = {};
     for (const auto& [stop_name, temp]: stops_) {
         routes_->AddEdge({current_vertex_id + stops_size, current_vertex_id, bus_wait_time});
@@ -147,7 +144,7 @@ void DataBase::BuildRoutes() {
         stop_to_vertex_.insert({stop_name, current_vertex_id++});
     }
 
-    vector<tuple<string_view, int, Edge<double>>> edge_hash(stops_size * stops_size,
+    std::vector<std::tuple<std::string_view, int, Edge<double>>> edge_hash(stops_size * stops_size,
             {{}, {}, {}});
     for(const auto& [bus_number, route]: buses_) {
         const auto& stops = route->Stops();
@@ -183,7 +180,7 @@ void DataBase::BuildRoutes() {
         edge_to_bus_.emplace_back(edge_bus_number, edge_span_count);
     }
 
-    router_ = make_unique<Router<double>>(*routes_);
+    router_ = std::make_unique<Router<double>>(*routes_);
 }
 
 }

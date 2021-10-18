@@ -2,52 +2,53 @@
 #include <cmath>
 #include <sstream>
 
-using namespace std;
+
 namespace busdb {
 
-pair<string_view, optional<string_view>> SplitTwoStrict(string_view s,
-        string_view delimiter) {
+std::pair<std::string_view, std::optional<std::string_view>>
+SplitTwoStrict(std::string_view s, std::string_view delimiter) {
     const size_t pos = s.find(delimiter);
     if (pos == s.npos) {
-        return {s, nullopt};
+        return {s, std::nullopt};
     } else {
         return {s.substr(0, pos), s.substr(pos + delimiter.length())};
     }
 }
 
-pair<string_view, string_view> SplitTwo(string_view s, string_view delimiter) {
+std::pair<std::string_view, std::string_view>
+SplitTwo(std::string_view s, std::string_view delimiter) {
     const auto [lhs, rhs_opt] = SplitTwoStrict(s, delimiter);
     return {lhs, rhs_opt.value_or("")};
 }
 
-string_view ReadToken(string_view& s, string_view delimiter) {
+std::string_view ReadToken(std::string_view& s, std::string_view delimiter) {
     const auto [lhs, rhs] = SplitTwo(s, delimiter);
     s = rhs;
     return lhs;
 }
 
-int ConvertToInt(string_view str) {
+int ConvertToInt(std::string_view str) {
     // use std::from_chars when available to git rid of string copy
     size_t pos;
-    const int result = stoi(string(str), &pos);
+    const int result = stoi(std::string(str), &pos);
     if (pos != str.length()) {
         std::stringstream error;
         error << "string " << str << " contains " << (str.length() - pos)
                 << " trailing chars";
-        throw invalid_argument(error.str());
+        throw std::invalid_argument(error.str());
     }
     return result;
 }
 
-double ConvertToDouble(string_view str) {
+double ConvertToDouble(std::string_view str) {
     // use std::from_chars when available to git rid of string copy
     size_t pos;
-    const auto result = stod(string(str), &pos);
+    const auto result = stod(std::string(str), &pos);
     if (pos != str.length()) {
         std::stringstream error;
         error << "string " << str << " contains " << (str.length() - pos)
                 << " trailing chars";
-        throw invalid_argument(error.str());
+        throw std::invalid_argument(error.str());
     }
     return result;
 }

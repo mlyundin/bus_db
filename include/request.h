@@ -63,13 +63,12 @@ struct ModifyRequest: Request {
     virtual void Process(DataBase& db) const = 0;
 };
 
-std::optional<Request::Type> ConvertRequestTypeFromString(
-        std::string_view type_str);
+std::optional<Request::Type>
+ConvertRequestTypeFromString(std::string_view type_str);
 
-template<class RequestType> std::unique_ptr<RequestType> ParseRequest(
-        std::string_view request_str) {
-    const auto request_type = ConvertRequestTypeFromString(
-            ReadToken(request_str));
+template<class RequestType>
+std::unique_ptr<RequestType> ParseRequest(std::string_view request_str) {
+    const auto request_type = ConvertRequestTypeFromString(ReadToken(request_str));
     if (!request_type) {
         return nullptr;
     }
@@ -82,8 +81,8 @@ template<class RequestType> std::unique_ptr<RequestType> ParseRequest(
     return request;
 }
 
-template<class RequestType> std::unique_ptr<RequestType> ParseJsonRequest(
-        const Json::Node& input) {
+template<class RequestType>
+std::unique_ptr<RequestType> ParseJsonRequest(const Json::Node& input) {
     const auto& data = input.AsObject();
     const auto request_type = ConvertRequestTypeFromString(
             data.at("type").AsString());

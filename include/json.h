@@ -47,10 +47,6 @@ public:
     }
 };
 
-bool EqualWithSkip(const Node& left, const Node& right,
-        std::optional<std::unordered_set<std::string>> attr_to_skip=std::nullopt);
-
-
 bool operator == (const Node& left, const Node& right);
 
 class Document {
@@ -68,5 +64,5 @@ Document Load(std::istream& input);
 void Save(const Document& document, std::ostream& output);
 
 bool EqualWithSkip(const Document& left, const Document& right,
-                   std::optional<std::unordered_set<std::string>> attr_to_skip);
+                   std::optional<std::unordered_set<std::string>> attr_to_skip = std::nullopt);
 }

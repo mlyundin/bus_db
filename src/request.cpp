@@ -10,21 +10,9 @@
 using namespace std;
 using namespace Json;
 
-namespace busdb {
-
-AbstractData::AbstractData(int request_id) :
-        request_id(request_id) {
-}
-
-Node AbstractData::toJson() const {
-    auto res = toJsonObject();
-    res["request_id"] = request_id;
-    return res;
-}
-
-ostream& operator<<(ostream& out, const AbstractData& data) {
-    return data.toStream(out);
-}
+namespace
+{
+using namespace busdb;
 
 struct BusData: AbstractData {
     string name;
@@ -46,7 +34,7 @@ struct BusData: AbstractData {
 
     Object toJsonObject() const override {
         return route ? route->toJsonObject() : Object { { "error_message",
-                "not found"s } };
+                                                                "not found"s } };
     }
 };
 
@@ -124,27 +112,11 @@ struct RouteData: AbstractData {
     }
 };
 
-Request::Request(Type type) :
-        type(type) {
-}
-
 const unordered_map<string_view, Request::Type> STR_TO_REQUEST_TYPE = {
         { "Stop", Request::Type::STOP },
         { "Bus", Request::Type::BUS },
         { "Route", Request::Type::ROUTE}};
 
-optional<Request::Type> ConvertRequestTypeFromString(string_view type_str) {
-    if (const auto it = STR_TO_REQUEST_TYPE.find(type_str); it
-            != STR_TO_REQUEST_TYPE.end()) {
-        return it->second;
-    }
-    return nullopt;
-}
-
-void ReadRequest::ParseFrom(const Object& data) {
-    id = data.at("id").AsInt();
-    ParseOther(data);
-}
 
 struct BusReadRequest: ReadRequest {
     BusReadRequest() :
@@ -225,7 +197,7 @@ struct StopModifyRequest: ModifyRequest {
         name = data.at("name").AsString();
         auto &latitude = data.at("latitude"), &longitude = data.at("longitude");
         position = {latitude.index() == (int)Node::Type::DoubleType ? latitude.AsDouble() : latitude.AsInt(),
-            longitude.index() == (int)Node::Type::DoubleType ? longitude.AsDouble() : longitude.AsInt()};
+                    longitude.index() == (int)Node::Type::DoubleType ? longitude.AsDouble() : longitude.AsInt()};
 
         for (auto& [stop_name, distance] : data.at("road_distances").AsObject()) {
             distances.push_back({stop_name, distance.AsInt()});
@@ -263,15 +235,50 @@ struct BusModifyRequest: ModifyRequest {
     shared_ptr<Route> route;
 };
 
+}
+
+namespace busdb {
+
+AbstractData::AbstractData(int request_id) :
+        request_id(request_id) {
+}
+
+Node AbstractData::toJson() const {
+    auto res = toJsonObject();
+    res["request_id"] = request_id;
+    return res;
+}
+
+ostream& operator<<(ostream& out, const AbstractData& data) {
+    return data.toStream(out);
+}
+
+Request::Request(Type type) :
+        type(type) {
+}
+
+optional<Request::Type> ConvertRequestTypeFromString(string_view type_str) {
+    if (const auto it = STR_TO_REQUEST_TYPE.find(type_str); it
+            != STR_TO_REQUEST_TYPE.end()) {
+        return it->second;
+    }
+    return nullopt;
+}
+
+void ReadRequest::ParseFrom(const Object& data) {
+    id = data.at("id").AsInt();
+    ParseOther(data);
+}
+
 unique_ptr<ModifyRequest> ModifyRequest::Create(Request::Type type) {
     switch (type) {
     case Request::Type::STOP:
         return make_unique<StopModifyRequest>();
     case Request::Type::BUS:
         return make_unique<BusModifyRequest>();
-    default:
-        return nullptr;
     }
+
+    return nullptr;
 }
 
 unique_ptr<ReadRequest> ReadRequest::Create(Request::Type type) {
@@ -282,9 +289,9 @@ unique_ptr<ReadRequest> ReadRequest::Create(Request::Type type) {
         return make_unique<StopReadRequest>();
     case Request::Type::ROUTE:
         return make_unique<RouteReadRequest>();
-    default:
-        return nullptr;
     }
+
+    return nullptr;
 }
 
 }
