@@ -68,8 +68,8 @@ DistanceType Distance(Point l, Point r) {
     l.ToRadians();
     r.ToRadians();
 
-    return acos(sin(l.latitude) * sin(r.latitude) + cos(l.latitude) * cos(r.latitude) *
-                cos(abs(l.longitude - r.longitude))) * Point::R;
+    return std::acos(std::sin(l.latitude) * std::sin(r.latitude) + std::cos(l.latitude) * std::cos(r.latitude) *
+                std::cos(std::abs(l.longitude - r.longitude))) * Point::R;
 }
 
 }
