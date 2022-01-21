@@ -1,31 +1,29 @@
-#include "../include/code_profile.h"
+#include "code_profile.h"
 #include <iostream>
-#include <sstream>
 
-using namespace std;
-using namespace chrono;
-
-TotalDuration::TotalDuration(const string& msg): message(msg + ": "), value(0) {}
+TotalDuration::TotalDuration(const std::string& msg): message(msg + ": "), value(0) {}
 
 TotalDuration::~TotalDuration() {
-    cerr << message << duration_cast<milliseconds>(value).count() << " ms"<< endl;
+    std::cerr << message << std::chrono::duration_cast<std::chrono::milliseconds>(value).count() << " ms"<< std::endl;
 }
 
 
-AddDuration::AddDuration(steady_clock::duration& dest): add_to(dest), start(steady_clock::now()) {}
+AddDuration::AddDuration(std::chrono::steady_clock::duration& dest): add_to(dest),
+start(std::chrono::steady_clock::now()) {}
 
 AddDuration::AddDuration(TotalDuration& dest): AddDuration(dest.value) {}
 
 AddDuration::~AddDuration() {
-    add_to += steady_clock::now() - start;
+    add_to += std::chrono::steady_clock::now() - start;
 }
 
-LogDuration::LogDuration(const string& msg): message(msg + ": "), start(steady_clock::now()) {}
+LogDuration::LogDuration(const std::string& msg): message(msg + ": "),
+    start(std::chrono::steady_clock::now()) {}
 
 LogDuration::~LogDuration() {
-  auto finish = steady_clock::now();
+  auto finish = std::chrono::steady_clock::now();
   auto dur = finish - start;
-  cerr << message
-     << duration_cast<milliseconds>(dur).count()
-     << " ms" << endl;
+  std::cerr << message
+     << std::chrono::duration_cast<std::chrono::milliseconds>(dur).count()
+     << " ms" << std::endl;
 }
