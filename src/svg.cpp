@@ -9,7 +9,11 @@ namespace Svg {
     }
 
     std::ostream& operator<<(std::ostream& out, const Svg::Rgb& rgb) {
-        return out<<"rgb(" << rgb.red << ',' << rgb.green << ','  << rgb.blue << ')';
+        return out<<"rgb(" << rgb.red << ',' << rgb.green << ',' << rgb.blue << ')';
+    }
+
+    std::ostream& operator<<(std::ostream& out, const Svg::Rgba& rgba) {
+        return out<<"rgba(" << rgba.red << ',' << rgba.green << ',' << rgba.blue << ',' << rgba.alpha << ')';
     }
 
     std::ostream& operator<<(std::ostream& out, std::monostate) {

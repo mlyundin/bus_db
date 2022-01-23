@@ -15,7 +15,11 @@ namespace Svg {
         int red = 0, green = 0, blue = 0;
     };
 
-    using Color = std::variant<std::monostate, std::string, Rgb>;
+    struct Rgba: public Rgb {
+        double alpha = {};
+    };
+
+    using Color = std::variant<std::monostate, std::string, Rgb, Rgba>;
     const Color NoneColor{};
 
     template<typename T>

@@ -2,6 +2,7 @@
 #include<map>
 #include<string>
 #include<set>
+#include <sstream>
 
 #include "request.h"
 #include "common.h"
@@ -33,8 +34,7 @@ struct BusData: AbstractData {
     }
 
     Object toJsonObject() const override {
-        return route ? route->ToJsonObject() : Object {{"error_message",
-                                                                "not found"s } };
+        return route ? route->ToJsonObject() : Object {{"error_message", "not found"s } };
     }
 };
 
@@ -70,7 +70,7 @@ struct StopData: AbstractData {
             b.push_back(string(bus));
         }
 
-        return { {"buses", move(b)}};
+        return {{"buses", move(b)}};
     }
 };
 
@@ -112,10 +112,41 @@ struct RouteData: AbstractData {
     }
 };
 
+
+struct MapData: AbstractData {
+
+    Svg::Document map;
+    MapData(int request_id, Svg::Document&& map) :
+            AbstractData(request_id), map(std::move(map)) {
+    }
+
+    ostream& toStream(ostream& out) const override {
+        return out << map;
+    }
+
+    Object toJsonObject() const override {
+        std::ostringstream ss;
+        ss << map;
+
+        std::string temp = ss.str(), res;
+        res.reserve(temp.size());
+        for (auto c: temp) {
+            if (c == '"' || c == '\\') {
+                res.push_back('\\');
+            }
+            res.push_back(c);
+        }
+
+        return {{"map", res}};
+    }
+};
+
 const unordered_map<string_view, Request::Type> STR_TO_REQUEST_TYPE = {
         { "Stop", Request::Type::STOP },
         { "Bus", Request::Type::BUS },
-        { "Route", Request::Type::ROUTE}};
+        { "Route", Request::Type::ROUTE},
+        {"Map", Request::Type::MAP}
+};
 
 
 struct BusReadRequest: ReadRequest {
@@ -174,6 +205,21 @@ struct RouteReadRequest: ReadRequest {
     }
 
     string from, to;
+};
+
+struct MapReadRequest: ReadRequest {
+    MapReadRequest() : ReadRequest(Type::MAP) {
+    }
+
+    void ParseFrom(string_view input) override {
+    }
+
+    void ParseOther(const Object& data) override {
+    }
+
+    unique_ptr<AbstractData> Process(const DataBase& db) const override {
+        return std::make_unique<MapData>(id, db.BuildMap());
+    }
 };
 
 struct StopModifyRequest: ModifyRequest {
@@ -253,8 +299,7 @@ ostream& operator<<(ostream& out, const AbstractData& data) {
     return data.toStream(out);
 }
 
-Request::Request(Type type) :
-        type(type) {
+Request::Request(Type type): type(type) {
 }
 
 optional<Request::Type> ConvertRequestTypeFromString(string_view type_str) {
@@ -272,10 +317,10 @@ void ReadRequest::ParseFrom(const Object& data) {
 
 unique_ptr<ModifyRequest> ModifyRequest::Create(Request::Type type) {
     switch (type) {
-    case Request::Type::STOP:
-        return make_unique<StopModifyRequest>();
-    case Request::Type::BUS:
-        return make_unique<BusModifyRequest>();
+        case Request::Type::STOP:
+            return make_unique<StopModifyRequest>();
+        case Request::Type::BUS:
+            return make_unique<BusModifyRequest>();
     }
 
     return nullptr;
@@ -283,12 +328,14 @@ unique_ptr<ModifyRequest> ModifyRequest::Create(Request::Type type) {
 
 unique_ptr<ReadRequest> ReadRequest::Create(Request::Type type) {
     switch (type) {
-    case Request::Type::BUS:
-        return make_unique<BusReadRequest>();
-    case Request::Type::STOP:
-        return make_unique<StopReadRequest>();
-    case Request::Type::ROUTE:
-        return make_unique<RouteReadRequest>();
+        case Request::Type::BUS:
+            return make_unique<BusReadRequest>();
+        case Request::Type::STOP:
+            return make_unique<StopReadRequest>();
+        case Request::Type::ROUTE:
+            return make_unique<RouteReadRequest>();
+        case Request::Type::MAP:
+            return make_unique<MapReadRequest>();
     }
 
     return nullptr;

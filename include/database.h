@@ -8,10 +8,12 @@
 #include<memory>
 #include<tuple>
 #include<list>
+#include<map>
 
 #include "common.h"
 #include "graph.h"
 #include "router.h"
+#include "svg.h"
 
 namespace busdb {
 
@@ -19,9 +21,18 @@ class Route;
 
 class DataBase {
 public:
-    struct Settings {
+    struct RouteSettings {
         int bus_wait_time;
         int bus_velocity;
+    };
+
+    struct RenderSettings {
+        double width, height, padding, stop_radius, line_width;
+        int stop_label_font_size;
+        Svg::Point stop_label_offset;
+        Svg::Color underlayer_color;
+        double underlayer_width;
+        std::vector<Svg::Color> color_palette;
     };
 
     enum class RouteItemType {
@@ -52,18 +63,23 @@ public:
     std::tuple<double, std::list<RouteItem>>
     GetRoute(const std::string& from, const std::string& to) const;
 
-    void SetSettings(const Settings& settings);
+    void SetRouteSettings(const RouteSettings& settings);
+    void SetRenderSettings(RenderSettings&& settings);
 
     void BuildRoutes();
 
+    Svg::Document BuildMap() const;
+
 private:
-    std::unordered_map<std::string, Point> stops_;
-    std::unordered_map<std::string, std::shared_ptr<Route>> buses_;
+    std::map<std::string, Point> stops_;
+    std::map<std::string, std::shared_ptr<Route>> buses_;
     std::unordered_map<std::string_view, std::set<std::string_view>> stop_buses_;
     mutable std::unordered_map<std::string_view,
             std::unordered_map<std::string_view, DistanceType>> distance_hash_;
 
-    std::optional<Settings> settings = std::nullopt;
+    std::optional<RouteSettings> route_settings_ = std::nullopt;
+    std::optional<RenderSettings> render_settings_ = std::nullopt;
+
     std::unique_ptr<Graph::DirectedWeightedGraph<double>> routes_ = nullptr;
     std::unique_ptr<Graph::Router<double>> router_ = nullptr;
 

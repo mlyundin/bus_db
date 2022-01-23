@@ -26,7 +26,7 @@ std::ostream& operator<<(std::ostream& out, const AbstractData& data);
 
 struct Request {
     enum class Type {
-        BUS, STOP, ROUTE
+        BUS, STOP, ROUTE, MAP
     };
 
     Request(Type type);
@@ -84,8 +84,7 @@ std::unique_ptr<RequestType> ParseRequest(std::string_view request_str) {
 template<class RequestType>
 std::unique_ptr<RequestType> ParseJsonRequest(const Json::Node& input) {
     const auto& data = input.AsObject();
-    const auto request_type = ConvertRequestTypeFromString(
-            data.at("type").AsString());
+    const auto request_type = ConvertRequestTypeFromString(data.at("type").AsString());
     if (!request_type) {
         return nullptr;
     }

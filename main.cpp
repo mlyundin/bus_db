@@ -13,11 +13,62 @@ using namespace busdb;
 using namespace Json;
 
 namespace {
+
+    double getDouble(const Node& node) {
+        return (Node::Type)node.index() == Node::Type::DoubleType ? node.AsDouble() : node.AsInt();
+    }
+
+    Svg::Color getColor(const Node& node) {
+        if (auto type = (Node::Type)node.index();type == Node::Type::ArrayType) {
+            const auto& arr = node.AsArray();
+            if (arr.size() == 3) {
+                return {Svg::Rgb{arr[0].AsInt(), arr[1].AsInt(), arr[2].AsInt()}};
+            }
+            else {
+                return {Svg::Rgba{arr[0].AsInt(), arr[1].AsInt(), arr[2].AsInt(), arr[3].AsDouble()}};
+            }
+        }
+        else if (type == Node::Type::StringType) {
+            return {node.AsString()};
+        }
+
+        return Svg::NoneColor;
+    }
+
+    Svg::Point getPoint(const Node& node) {
+        const auto& arr = node.AsArray();
+        return {getDouble(arr[0]), getDouble(arr[1])};
+    }
+
     void ReadSettings(const Object &in_data, DataBase &db) {
         if (in_data.count("routing_settings")) {
-            const auto &settings = in_data.at("routing_settings").AsObject();
-            db.SetSettings({settings.at("bus_wait_time").AsInt(),
-                            settings.at("bus_velocity").AsInt()});
+            const auto &s = in_data.at("routing_settings").AsObject();
+            db.SetRouteSettings({.bus_wait_time=s.at("bus_wait_time").AsInt(),
+                                        .bus_velocity=s.at("bus_velocity").AsInt()});
+        }
+
+        if (in_data.count("render_settings")) {
+            const auto &s = in_data.at("render_settings").AsObject();
+            static auto getPallet = [](const auto& node) {
+                std::vector<Svg::Color> color_palette;
+                const auto& arr = node.AsArray();
+                color_palette.reserve(arr.size());
+                std::transform(std::begin(arr), std::end(arr), std::back_inserter(color_palette), getColor);
+                return color_palette;
+            };
+
+            db.SetRenderSettings({
+                .width = getDouble(s.at("width")),
+                .height = getDouble(s.at("height")),
+                .padding = getDouble(s.at("padding")),
+                .stop_radius = getDouble(s.at("stop_radius")),
+                .line_width = getDouble(s.at("line_width")),
+                .stop_label_font_size = s.at("stop_label_font_size").AsInt(),
+                .stop_label_offset = getPoint(s.at("stop_label_offset")),
+                .underlayer_color = getColor(s.at("underlayer_color")),
+                .underlayer_width = getDouble(s.at("underlayer_width")),
+                .color_palette = getPallet(s.at("color_palette"))
+            });
         }
     }
 
@@ -98,19 +149,20 @@ namespace {
         }
     }
 }
-/*
+
 int main() {
     LOG_DURATION("Total")
     DataBase db;
     std::ostream& out = std::cout;
+    out.precision(6);
+
 #ifdef DEBUG
-    std::ifstream ifs("input2.json");
+    std::ifstream ifs("input.json");
     std::istream& in = ifs;
 #else
     std::istream& in = std::cin;
 #endif
 
-    out.precision(6);
 #ifdef PLAN_TEXT
     const auto modify_requests = ReadRequests<ModifyRequest>(in);
     const auto read_requests = ReadRequests<ReadRequest>(in);
@@ -119,71 +171,19 @@ int main() {
     PrintResponses(ProcessReadRequests(read_requests, db), out);
 #else
     auto in_data = Load(in);
-        auto& requests = in_data.GetRoot().AsObject();
-        ReadSettings(requests, db);
+    auto& requests = in_data.GetRoot().AsObject();
+    ReadSettings(requests, db);
 
-        const auto modify_requests = ReadJsonRequests<ModifyRequest>(
-                requests.at("base_requests").AsArray());
-        const auto read_requests = ReadJsonRequests<ReadRequest>(
-                requests.at("stat_requests").AsArray());
+    const auto modify_requests = ReadJsonRequests<ModifyRequest>(
+            requests.at("base_requests").AsArray());
+    const auto read_requests = ReadJsonRequests<ReadRequest>(
+            requests.at("stat_requests").AsArray());
 
-        ProcessModifyRequest(modify_requests, db);
-        auto doc = ResponsesToDocument(ProcessReadRequests(read_requests, db));
+    ProcessModifyRequest(modify_requests, db);
+    auto doc = ResponsesToDocument(ProcessReadRequests(read_requests, db));
 
-//#ifdef DEBUG
-//        std::ifstream output("test_output.txt");
-//        assert(EqualWithSkip(doc, Load(output), std::unordered_set<std::string>{"items"}));
-//#endif
-        Save(doc, out);
+    Save(doc, out);
 #endif
-
-    return 0;
-}
-*/
-
-#include "svg.h"
-int main() {
-    Svg::Document svg;
-
-    svg.Add(
-            Svg::Polyline{}
-                    .SetStrokeColor(Svg::Rgb{140, 198, 63})  // soft green
-                    .SetStrokeWidth(16)
-                    .SetStrokeLineCap("round")
-                    .AddPoint({50, 50})
-                    .AddPoint({250, 250})
-    );
-
-    for (const auto point : {Svg::Point{50, 50}, Svg::Point{250, 250}}) {
-        svg.Add(
-                Svg::Circle{}
-                        .SetFillColor("white")
-                        .SetRadius(6)
-                        .SetCenter(point)
-        );
-    }
-
-    svg.Add(
-            Svg::Text{}
-                    .SetPoint({50, 50})
-                    .SetOffset({10, -10})
-                    .SetFontSize(20)
-                    .SetFontFamily("Verdana")
-                    .SetFillColor("black")
-                    .SetData("C")
-    );
-    svg.Add(
-            Svg::Text{}
-                    .SetPoint({250, 250})
-                    .SetOffset({10, -10})
-                    .SetFontSize(20)
-                    .SetFontFamily("Verdana")
-                    .SetFillColor("black")
-                    .SetData("C++")
-    );
-
-//    std::ofstream ofs("out.txt");
-    svg.Render(std::cout);
 
     return 0;
 }
