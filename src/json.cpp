@@ -148,6 +148,8 @@ bool EqualWithSkip(const Node& left, const Node& right,
         case Node::Type::StringType:
             return left.AsString() == right.AsString();
     }
+
+    return false;
 }
 
 }
