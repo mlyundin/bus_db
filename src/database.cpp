@@ -239,70 +239,76 @@ void DataBase::BuildRoutes() {
 Svg::Document DataBase::BuildMap() const {
     Svg::Document map;
 
-    if (!render_settings_) return map;
+    if (!render_settings_ || render_settings_->layers.empty()) return map;
 
     const auto stops2points = ToSvgPoints(std::begin(stops_), std::end(stops_), *render_settings_);
     const std::string round_stroke = "round";
     const auto n = render_settings_->color_palette.size();
+    for (const auto& layer: render_settings_->layers) {
+        if (layer == "bus_lines") {
+            auto i = 0;
+            for (const auto& [_, route]: buses_) {
+                Svg::Polyline polyline;
 
-    auto i = 0;
-    for (const auto& [_, route]: buses_) {
-        Svg::Polyline polyline;
+                polyline.SetStrokeColor(render_settings_->color_palette[(i++) % n]).
+                        SetStrokeWidth(render_settings_->line_width).SetStrokeLineCap(round_stroke).SetStrokeLineJoin(round_stroke);
 
-        polyline.SetStrokeColor(render_settings_->color_palette[(i++) % n]).
-        SetStrokeWidth(render_settings_->line_width).SetStrokeLineCap(round_stroke).SetStrokeLineJoin(round_stroke);
+                for (auto stop: route->Stops()) {
+                    polyline.AddPoint(stops2points.at(*stop));
+                }
 
-        for (auto stop: route->Stops()) {
-            polyline.AddPoint(stops2points.at(*stop));
+                map.Add(std::move(polyline));
+            }
         }
+        else if (layer == "bus_labels") {
+            auto i = 0;
+            for (const auto& [name, route]: buses_) {
+                const auto& first_stop  = *route->FirstStop(), last_stop = *route->LastStop();
 
-        map.Add(std::move(polyline));
-    }
+                Svg::Text background;
+                background.SetData(name).SetFontFamily("Verdana").SetFontSize(render_settings_->bus_label_font_size).
+                        SetFontWeight("bold").SetOffset(render_settings_->bus_label_offset).SetPoint(stops2points.at(first_stop));
 
-    i = 0;
-    for (const auto& [name, route]: buses_) {
-        const auto& first_stop  = *route->FirstStop(), last_stop = *route->LastStop();
+                auto text = background;
+                text.SetFillColor(render_settings_->color_palette[(i++) % n]);
 
-        Svg::Text background;
-        background.SetData(name).SetFontFamily("Verdana").SetFontSize(render_settings_->bus_label_font_size).
-        SetFontWeight("bold").SetOffset(render_settings_->bus_label_offset).SetPoint(stops2points.at(first_stop));
+                background.SetStrokeLineCap(round_stroke).SetStrokeLineJoin(round_stroke).
+                        SetStrokeWidth(render_settings_->underlayer_width).
+                        SetStrokeColor(render_settings_->underlayer_color).SetFillColor(render_settings_->underlayer_color);
 
-        auto text = background;
-        text.SetFillColor(render_settings_->color_palette[(i++) % n]);
+                if (first_stop != last_stop) {
+                    map.Add(background);
+                    map.Add(text);
 
-        background.SetStrokeLineCap(round_stroke).SetStrokeLineJoin(round_stroke).
-                SetStrokeWidth(render_settings_->underlayer_width).
-                SetStrokeColor(render_settings_->underlayer_color).SetFillColor(render_settings_->underlayer_color);
-
-        if (first_stop != last_stop) {
-            map.Add(background);
-            map.Add(text);
-
-            background.SetPoint(stops2points.at(last_stop));
-            text.SetPoint(stops2points.at(last_stop));
+                    background.SetPoint(stops2points.at(last_stop));
+                    text.SetPoint(stops2points.at(last_stop));
+                }
+                map.Add(std::move(background));
+                map.Add(std::move(text));
+            }
         }
-        map.Add(std::move(background));
-        map.Add(std::move(text));
-    }
+        else if (layer == "stop_points") {
+            for (auto [_, point]: stops2points) {
+                map.Add(Svg::Circle{}.SetFillColor("white").SetRadius(render_settings_->stop_radius).SetCenter(point));
+            }
+        }
+        else if (layer == "stop_labels") {
+            for (const auto& [name, _]: stops_) {
+                Svg::Text background;
+                background.SetData(name).SetFontFamily("Verdana").SetFontSize(render_settings_->stop_label_font_size).
+                        SetOffset(render_settings_->stop_label_offset).SetPoint(stops2points.at(name));
 
-    for (auto [_, point]: stops2points) {
-        map.Add(Svg::Circle{}.SetFillColor("white").SetRadius(render_settings_->stop_radius).SetCenter(point));
-    }
+                auto text = background;
+                text.SetFillColor("black");
 
-    for (const auto& [name, _]: stops_) {
-        Svg::Text background;
-        background.SetData(name).SetFontFamily("Verdana").SetFontSize(render_settings_->stop_label_font_size).
-        SetOffset(render_settings_->stop_label_offset).SetPoint(stops2points.at(name));
+                background.SetStrokeLineCap(round_stroke).SetStrokeLineJoin(round_stroke).
+                        SetStrokeWidth(render_settings_->underlayer_width).
+                        SetStrokeColor(render_settings_->underlayer_color).SetFillColor(render_settings_->underlayer_color);
 
-        auto text = background;
-        text.SetFillColor("black");
-
-        background.SetStrokeLineCap(round_stroke).SetStrokeLineJoin(round_stroke).
-        SetStrokeWidth(render_settings_->underlayer_width).
-        SetStrokeColor(render_settings_->underlayer_color).SetFillColor(render_settings_->underlayer_color);
-
-        map.Add(std::move(background));
-        map.Add(std::move(text));
+                map.Add(std::move(background));
+                map.Add(std::move(text));
+            }
+        }
     }
 
     return map;

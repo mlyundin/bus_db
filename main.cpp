@@ -40,6 +40,17 @@ namespace {
         return {getDouble(arr[0]), getDouble(arr[1])};
     }
 
+    auto getLayers(const Node& node) {
+        const auto& arr = node.AsArray();
+        std::vector<std::string> res;
+        res.reserve(arr.size());
+        std::transform(std::begin(arr), std::end(arr), std::back_inserter(res), [](const auto& item){
+           return item.AsString();
+        });
+
+        return res;
+    }
+
     void ReadSettings(const Object &in_data, DataBase &db) {
         if (in_data.count("routing_settings")) {
             const auto &s = in_data.at("routing_settings").AsObject();
@@ -69,7 +80,8 @@ namespace {
                 .underlayer_width = getDouble(s.at("underlayer_width")),
                 .color_palette = getPallet(s.at("color_palette")),
                 .bus_label_font_size = s.at("bus_label_font_size").AsInt(),
-                .bus_label_offset = getPoint(s.at("bus_label_offset"))
+                .bus_label_offset = getPoint(s.at("bus_label_offset")),
+                .layers = getLayers(s.at("layers"))
             });
         }
     }

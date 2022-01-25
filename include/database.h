@@ -35,6 +35,7 @@ public:
         std::vector<Svg::Color> color_palette;
         int bus_label_font_size;
         Svg::Point bus_label_offset;
+        std::vector<std::string> layers;
     };
 
     enum class RouteItemType {
