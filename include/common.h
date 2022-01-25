@@ -56,4 +56,3 @@ struct hash_pair {
 };
 
 }
-;

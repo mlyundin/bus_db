@@ -23,6 +23,14 @@ class CircleRoute: public Route {
 public:
     static std::string delimiter;
 
+    StopsContainer::const_iterator FirstStop() const override {
+        return *std::cbegin(route_);
+    }
+
+    StopsContainer::const_iterator LastStop() const  override {
+        return *std::cbegin(route_);
+    }
+
 protected:
     std::string_view Delimiter() const override {
         return CircleRoute::delimiter;
@@ -34,8 +42,17 @@ protected:
 };
 
 class TwoWayRoute: public Route {
+    StopsContainer::const_iterator last_stop_;
 public:
     static std::string delimiter;
+
+    StopsContainer::const_iterator FirstStop() const override {
+        return *std::cbegin(route_);
+    }
+
+    StopsContainer::const_iterator LastStop() const  override {
+        return last_stop_;
+    }
 
 protected:
     std::string_view Delimiter() const override {
@@ -43,6 +60,7 @@ protected:
     }
 
     void FillRoute() override {
+        last_stop_ = *route_.rbegin();
         if (route_.size() >= 2)
             copy(++route_.rbegin(), route_.rend(), back_inserter(route_));
     }

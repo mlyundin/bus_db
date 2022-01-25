@@ -14,6 +14,7 @@ namespace busdb {
 class DataBase;
 
 class Route {
+protected:
     using StopsContainer = std::set<std::string>;
 
 public:
@@ -30,6 +31,9 @@ public:
     DistanceType LineDistance() const;
 
     Json::Object ToJsonObject() const;
+
+    virtual StopsContainer::const_iterator FirstStop() const = 0;
+    virtual StopsContainer::const_iterator LastStop() const = 0;
 
     static std::shared_ptr<Route> ParseRoute(std::string_view route_str);
 

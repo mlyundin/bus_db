@@ -74,6 +74,9 @@ namespace Svg {
         if (text.font_family_) {
             out << "font-family=\"" << *text.font_family_ << "\" ";
         }
+        if (text.font_weight_) {
+            out << "font-weight=\"" << *text.font_weight_ << "\" ";
+        }
         out << static_cast<const BaseObject<Text>&>(text);
         out << ">";
         out << text.data_;
@@ -84,6 +87,7 @@ namespace Svg {
     Text& Text::SetOffset(Point p) {offset_ = p; return *this;}
     Text& Text::SetFontSize(uint32_t size) {font_size_ = size; return *this;}
     Text& Text::SetFontFamily(const std::string& fontFamily) {font_family_ = fontFamily; return *this;}
+    Text& Text::SetFontWeight(const std::string& fontWeight){font_weight_ = fontWeight; return  *this;}
     Text& Text::SetData(const std::string& data) {data_ = data; return *this;}
 
     std::ostream& operator<<(std::ostream& out, const Document& doc) {

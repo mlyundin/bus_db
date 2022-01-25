@@ -242,12 +242,13 @@ Svg::Document DataBase::BuildMap() const {
     if (!render_settings_) return map;
 
     const auto stops2points = ToSvgPoints(std::begin(stops_), std::end(stops_), *render_settings_);
-
     const std::string round_stroke = "round";
     const auto n = render_settings_->color_palette.size();
+
     auto i = 0;
-    for (auto [_, route]: buses_) {
+    for (const auto& [_, route]: buses_) {
         Svg::Polyline polyline;
+
         polyline.SetStrokeColor(render_settings_->color_palette[(i++) % n]).
         SetStrokeWidth(render_settings_->line_width).SetStrokeLineCap(round_stroke).SetStrokeLineJoin(round_stroke);
 
@@ -258,11 +259,37 @@ Svg::Document DataBase::BuildMap() const {
         map.Add(std::move(polyline));
     }
 
+    i = 0;
+    for (const auto& [name, route]: buses_) {
+        const auto& first_stop  = *route->FirstStop(), last_stop = *route->LastStop();
+
+        Svg::Text background;
+        background.SetData(name).SetFontFamily("Verdana").SetFontSize(render_settings_->bus_label_font_size).
+        SetFontWeight("bold").SetOffset(render_settings_->bus_label_offset).SetPoint(stops2points.at(first_stop));
+
+        auto text = background;
+        text.SetFillColor(render_settings_->color_palette[(i++) % n]);
+
+        background.SetStrokeLineCap(round_stroke).SetStrokeLineJoin(round_stroke).
+                SetStrokeWidth(render_settings_->underlayer_width).
+                SetStrokeColor(render_settings_->underlayer_color).SetFillColor(render_settings_->underlayer_color);
+
+        if (first_stop != last_stop) {
+            map.Add(background);
+            map.Add(text);
+
+            background.SetPoint(stops2points.at(last_stop));
+            text.SetPoint(stops2points.at(last_stop));
+        }
+        map.Add(std::move(background));
+        map.Add(std::move(text));
+    }
+
     for (auto [_, point]: stops2points) {
         map.Add(Svg::Circle{}.SetFillColor("white").SetRadius(render_settings_->stop_radius).SetCenter(point));
     }
 
-    for (auto [name, _]: stops_) {
+    for (const auto& [name, _]: stops_) {
         Svg::Text background;
         background.SetData(name).SetFontFamily("Verdana").SetFontSize(render_settings_->stop_label_font_size).
         SetOffset(render_settings_->stop_label_offset).SetPoint(stops2points.at(name));

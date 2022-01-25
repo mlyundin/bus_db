@@ -67,7 +67,9 @@ namespace {
                 .stop_label_offset = getPoint(s.at("stop_label_offset")),
                 .underlayer_color = getColor(s.at("underlayer_color")),
                 .underlayer_width = getDouble(s.at("underlayer_width")),
-                .color_palette = getPallet(s.at("color_palette"))
+                .color_palette = getPallet(s.at("color_palette")),
+                .bus_label_font_size = s.at("bus_label_font_size").AsInt(),
+                .bus_label_offset = getPoint(s.at("bus_label_offset"))
             });
         }
     }

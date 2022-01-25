@@ -69,12 +69,14 @@ namespace Svg {
         Point offset_;
         uint32_t font_size_ = 1;
         std::optional<std::string> font_family_;
+        std::optional<std::string> font_weight_;
         std::string data_;
     public:
         Text& SetPoint(Point);
         Text& SetOffset(Point);
         Text& SetFontSize(uint32_t);
         Text& SetFontFamily(const std::string&);
+        Text& SetFontWeight(const std::string&);
         Text& SetData(const std::string&);
         friend std::ostream& operator<<(std::ostream&, const Text&);
     };
