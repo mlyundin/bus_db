@@ -32,12 +32,13 @@ public:
 
     Json::Object ToJsonObject() const;
 
-    virtual StopsContainer::const_iterator FirstStop() const = 0;
-    virtual StopsContainer::const_iterator LastStop() const = 0;
+    virtual std::array<StopsContainer::const_iterator, 2> EdgeStops() const = 0;
 
-    static std::shared_ptr<Route> ParseRoute(std::string_view route_str);
+    static std::unique_ptr<Route> ParseRoute(std::string_view route_str);
 
-    static std::shared_ptr<Route> ParseRoute(const Json::Object& data);
+    static std::unique_ptr<Route> ParseRoute(const Json::Object& data);
+
+    virtual ~Route() = default;
 
 protected:
     void ParseFrom(std::string_view input);

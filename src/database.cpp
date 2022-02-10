@@ -263,11 +263,11 @@ Svg::Document DataBase::BuildMap() const {
         else if (layer == "bus_labels") {
             auto i = 0;
             for (const auto& [name, route]: buses_) {
-                const auto& first_stop  = *route->FirstStop(), last_stop = *route->LastStop();
+                const auto [first_stop, last_stop] = route->EdgeStops();
 
                 Svg::Text background;
                 background.SetData(name).SetFontFamily("Verdana").SetFontSize(render_settings_->bus_label_font_size).
-                        SetFontWeight("bold").SetOffset(render_settings_->bus_label_offset).SetPoint(stops2points.at(first_stop));
+                        SetFontWeight("bold").SetOffset(render_settings_->bus_label_offset).SetPoint(stops2points.at(*first_stop));
 
                 auto text = background;
                 text.SetFillColor(render_settings_->color_palette[(i++) % n]);
@@ -280,8 +280,8 @@ Svg::Document DataBase::BuildMap() const {
                     map.Add(background);
                     map.Add(text);
 
-                    background.SetPoint(stops2points.at(last_stop));
-                    text.SetPoint(stops2points.at(last_stop));
+                    background.SetPoint(stops2points.at(*last_stop));
+                    text.SetPoint(stops2points.at(*last_stop));
                 }
                 map.Add(std::move(background));
                 map.Add(std::move(text));

@@ -23,12 +23,8 @@ class CircleRoute: public Route {
 public:
     static std::string delimiter;
 
-    StopsContainer::const_iterator FirstStop() const override {
-        return *std::cbegin(route_);
-    }
-
-    StopsContainer::const_iterator LastStop() const  override {
-        return *std::cbegin(route_);
+    std::array<StopsContainer::const_iterator, 2> EdgeStops() const override {
+        return {*std::cbegin(route_), *std::cbegin(route_)};
     }
 
 protected:
@@ -46,12 +42,8 @@ class TwoWayRoute: public Route {
 public:
     static std::string delimiter;
 
-    StopsContainer::const_iterator FirstStop() const override {
-        return *std::cbegin(route_);
-    }
-
-    StopsContainer::const_iterator LastStop() const  override {
-        return last_stop_;
+    std::array<StopsContainer::const_iterator, 2> EdgeStops() const override {
+        return {*std::cbegin(route_), last_stop_};
     }
 
 protected:
@@ -130,13 +122,13 @@ std::ostream& operator<<(std::ostream& out, const Route& r) {
             << distance / r.LineDistance() << " curvature";
 }
 
-std::shared_ptr<Route> Route::ParseRoute(std::string_view route_str) {
-    std::shared_ptr<Route> route = nullptr;
+std::unique_ptr<Route> Route::ParseRoute(std::string_view route_str) {
+    std::unique_ptr<Route> route = nullptr;
 
     if (route_str.find(CircleRoute::delimiter) != std::string_view::npos) {
-        route = std::make_shared<CircleRoute>();
+        route = std::make_unique<CircleRoute>();
     } else if (route_str.find(TwoWayRoute::delimiter) != std::string_view::npos) {
-        route = std::make_shared<TwoWayRoute>();
+        route = std::make_unique<TwoWayRoute>();
     }
 
     if (route)
@@ -145,13 +137,13 @@ std::shared_ptr<Route> Route::ParseRoute(std::string_view route_str) {
     return route;
 }
 
-std::shared_ptr<Route> Route::ParseRoute(const Json::Object& data) {
-    std::shared_ptr<Route> route = nullptr;
+std::unique_ptr<Route> Route::ParseRoute(const Json::Object& data) {
+    std::unique_ptr<Route> route = nullptr;
 
     if (data.at("is_roundtrip").AsBoolean()) {
-        route = std::make_shared<CircleRoute>();
+        route = std::make_unique<CircleRoute>();
     } else {
-        route = std::make_shared<TwoWayRoute>();
+        route = std::make_unique<TwoWayRoute>();
     }
 
     route->ParseFrom(data);
