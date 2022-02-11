@@ -13,77 +13,9 @@ using namespace busdb;
 using namespace Json;
 
 namespace {
-
-    double getDouble(const Node& node) {
-        return (Node::Type)node.index() == Node::Type::DoubleType ? node.AsDouble() : node.AsInt();
-    }
-
-    Svg::Color getColor(const Node& node) {
-        if (auto type = (Node::Type)node.index();type == Node::Type::ArrayType) {
-            const auto& arr = node.AsArray();
-            if (arr.size() == 3) {
-                return {Svg::Rgb{arr[0].AsInt(), arr[1].AsInt(), arr[2].AsInt()}};
-            }
-            else {
-                return {Svg::Rgba{arr[0].AsInt(), arr[1].AsInt(), arr[2].AsInt(), arr[3].AsDouble()}};
-            }
-        }
-        else if (type == Node::Type::StringType) {
-            return {node.AsString()};
-        }
-
-        return Svg::NoneColor;
-    }
-
-    Svg::Point getPoint(const Node& node) {
-        const auto& arr = node.AsArray();
-        return {getDouble(arr[0]), getDouble(arr[1])};
-    }
-
-    auto getLayers(const Node& node) {
-        const auto& arr = node.AsArray();
-        std::vector<std::string> res;
-        res.reserve(arr.size());
-        std::transform(std::begin(arr), std::end(arr), std::back_inserter(res), [](const auto& item){
-           return item.AsString();
-        });
-
-        return res;
-    }
-
     void ReadSettings(const Object &in_data, DataBase &db) {
-        if (in_data.count("routing_settings")) {
-            const auto &s = in_data.at("routing_settings").AsObject();
-            db.SetRouteSettings({.bus_wait_time=s.at("bus_wait_time").AsInt(),
-                                        .bus_velocity=s.at("bus_velocity").AsInt()});
-        }
-
-        if (in_data.count("render_settings")) {
-            const auto &s = in_data.at("render_settings").AsObject();
-            static auto getPallet = [](const auto& node) {
-                std::vector<Svg::Color> color_palette;
-                const auto& arr = node.AsArray();
-                color_palette.reserve(arr.size());
-                std::transform(std::begin(arr), std::end(arr), std::back_inserter(color_palette), getColor);
-                return color_palette;
-            };
-
-            db.SetRenderSettings({
-                .width = getDouble(s.at("width")),
-                .height = getDouble(s.at("height")),
-                .padding = getDouble(s.at("padding")),
-                .stop_radius = getDouble(s.at("stop_radius")),
-                .line_width = getDouble(s.at("line_width")),
-                .stop_label_font_size = s.at("stop_label_font_size").AsInt(),
-                .stop_label_offset = getPoint(s.at("stop_label_offset")),
-                .underlayer_color = getColor(s.at("underlayer_color")),
-                .underlayer_width = getDouble(s.at("underlayer_width")),
-                .color_palette = getPallet(s.at("color_palette")),
-                .bus_label_font_size = s.at("bus_label_font_size").AsInt(),
-                .bus_label_offset = getPoint(s.at("bus_label_offset")),
-                .layers = getLayers(s.at("layers"))
-            });
-        }
+        db.SetRouteSettings(in_data);
+        db.SetRenderSettings(in_data);
     }
 
     template<class RequestType>

@@ -62,6 +62,44 @@ namespace {
 
         return res;
     }
+
+    using namespace Json;
+    double GetDouble(const Node& node) {
+        return (Node::Type)node.index() == Node::Type::DoubleType ? node.AsDouble() : node.AsInt();
+    }
+
+    Svg::Color GetColor(const Node& node) {
+        if (auto type = (Node::Type)node.index();type == Node::Type::ArrayType) {
+            const auto& arr = node.AsArray();
+            if (arr.size() == 3) {
+                return {Svg::Rgb{arr[0].AsInt(), arr[1].AsInt(), arr[2].AsInt()}};
+            }
+            else {
+                return {Svg::Rgba{arr[0].AsInt(), arr[1].AsInt(), arr[2].AsInt(), arr[3].AsDouble()}};
+            }
+        }
+        else if (type == Node::Type::StringType) {
+            return {node.AsString()};
+        }
+
+        return Svg::NoneColor;
+    }
+
+    Svg::Point GetPoint(const Node& node) {
+        const auto& arr = node.AsArray();
+        return {GetDouble(arr[0]), GetDouble(arr[1])};
+    }
+
+    auto getLayers(const Node& node) {
+        const auto& arr = node.AsArray();
+        std::vector<std::string> res;
+        res.reserve(arr.size());
+        std::transform(std::begin(arr), std::end(arr), std::back_inserter(res), [](const auto& item){
+            return item.AsString();
+        });
+
+        return res;
+    }
 }
 
 namespace busdb {
@@ -167,12 +205,41 @@ DataBase::GetRoute(const std::string& from, const std::string& to) const {
     return {info->weight, move(route)};
 }
 
-void DataBase::SetRouteSettings(const RouteSettings& settings) {
-    this->route_settings_ = settings;
+void DataBase::SetRouteSettings(const Json::Object& in_data) {
+    if (in_data.count("routing_settings")) {
+        const auto &s = in_data.at("routing_settings").AsObject();
+        route_settings_ = {.bus_wait_time=s.at("bus_wait_time").AsInt(),
+                           .bus_velocity=s.at("bus_velocity").AsInt()};
+    }
 }
 
-void DataBase::SetRenderSettings(RenderSettings&& settings) {
-    this->render_settings_ = std::move(settings);
+void DataBase::SetRenderSettings(const Json::Object& in_data) {
+    if (in_data.count("render_settings") == 0)
+        return;
+
+    const auto &s = in_data.at("render_settings").AsObject();
+    static auto GetPallet = [](const auto& node) {
+        std::vector<Svg::Color> color_palette;
+        const auto& arr = node.AsArray();
+        color_palette.reserve(arr.size());
+        std::transform(std::begin(arr), std::end(arr), std::back_inserter(color_palette), GetColor);
+        return color_palette;
+    };
+
+    render_settings_ = {.width = GetDouble(s.at("width")),
+                         .height = GetDouble(s.at("height")),
+                         .padding = GetDouble(s.at("padding")),
+                         .stop_radius = GetDouble(s.at("stop_radius")),
+                         .line_width = GetDouble(s.at("line_width")),
+                         .stop_label_font_size = s.at("stop_label_font_size").AsInt(),
+                         .stop_label_offset = GetPoint(s.at("stop_label_offset")),
+                         .underlayer_color = GetColor(s.at("underlayer_color")),
+                         .underlayer_width = GetDouble(s.at("underlayer_width")),
+                         .color_palette = GetPallet(s.at("color_palette")),
+                         .bus_label_font_size = s.at("bus_label_font_size").AsInt(),
+                         .bus_label_offset = GetPoint(s.at("bus_label_offset")),
+                         .layers = getLayers(s.at("layers"))
+                         };
 }
 
 void DataBase::BuildRoutes() {

@@ -14,6 +14,7 @@
 #include "graph.h"
 #include "router.h"
 #include "svg.h"
+#include "json.h"
 
 namespace busdb {
 
@@ -66,8 +67,8 @@ public:
     std::tuple<double, std::list<RouteItem>>
     GetRoute(const std::string& from, const std::string& to) const;
 
-    void SetRouteSettings(const RouteSettings& settings);
-    void SetRenderSettings(RenderSettings&& settings);
+    void SetRouteSettings(const Json::Object& in_data);
+    void SetRenderSettings(const Json::Object& in_data);
 
     void BuildRoutes();
 
