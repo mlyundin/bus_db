@@ -27,18 +27,6 @@ public:
         int bus_velocity;
     };
 
-    struct RenderSettings {
-        double width, height, padding, stop_radius, line_width;
-        int stop_label_font_size;
-        Svg::Point stop_label_offset;
-        Svg::Color underlayer_color;
-        double underlayer_width;
-        std::vector<Svg::Color> color_palette;
-        int bus_label_font_size;
-        Svg::Point bus_label_offset;
-        std::vector<std::string> layers;
-    };
-
     enum class RouteItemType {
         WAIT = 0,
         BUS
@@ -46,7 +34,7 @@ public:
 
     using RouteItem = std::tuple<DataBase::RouteItemType, double, std::string_view, int>;
 
-    DataBase() = default;
+    DataBase();
 
     DistanceType Distance(const std::string& stop1,
             const std::string& stop2) const;
@@ -74,7 +62,10 @@ public:
 
     Svg::Document BuildMap() const;
 
+    ~DataBase();
 private:
+    class Render;
+    std::unique_ptr<Render> render_;
     std::map<std::string, Point> stops_;
     std::map<std::string, std::shared_ptr<Route>> buses_;
     std::unordered_map<std::string_view, std::set<std::string_view>> stop_buses_;
@@ -82,7 +73,6 @@ private:
             std::unordered_map<std::string_view, DistanceType>> distance_hash_;
 
     std::optional<RouteSettings> route_settings_ = std::nullopt;
-    std::optional<RenderSettings> render_settings_ = std::nullopt;
 
     std::unique_ptr<Graph::DirectedWeightedGraph<double>> routes_ = nullptr;
     std::unique_ptr<Graph::Router<double>> router_ = nullptr;
