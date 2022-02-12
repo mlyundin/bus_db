@@ -8,7 +8,6 @@
 #include "common.h"
 #include "route.h"
 
-using namespace std;
 using namespace Json;
 
 namespace
@@ -16,14 +15,14 @@ namespace
 using namespace busdb;
 
 struct BusData: AbstractData {
-    string name;
-    shared_ptr<Route> route;
+    std::string name;
+    std::shared_ptr<Route> route;
 
-    BusData(int request_id, string name, shared_ptr<Route> route) :
+    BusData(int request_id, std::string name, std::shared_ptr<Route> route) :
             AbstractData(request_id), name(move(name)), route(route) {
     }
 
-    ostream& toStream(ostream& out) const override {
+    std::ostream& toStream(std::ostream& out) const override {
         out << "Bus " << name << ": ";
         if (!route)
             out << "not found";
@@ -34,19 +33,19 @@ struct BusData: AbstractData {
     }
 
     Object toJsonObject() const override {
-        return route ? route->ToJsonObject() : Object {{"error_message", "not found"s } };
+        return route ? route->ToJsonObject() : Object {{"error_message", "not found" } };
     }
 };
 
 struct StopData: AbstractData {
-    string name;
-    optional<set<string_view>> buses;
+    std::string name;
+    std::optional<std::set<std::string_view>> buses;
 
-    StopData(int request_id, string name, optional<set<string_view>> buses) :
+    StopData(int request_id, std::string name, decltype(buses) buses) :
             AbstractData(request_id), name(move(name)), buses(buses) {
     }
 
-    ostream& toStream(ostream& out) const override {
+    std::ostream& toStream(std::ostream& out) const override {
         out << "Stop " << name << ": ";
         if (!buses)
             out << "not found";
@@ -63,11 +62,11 @@ struct StopData: AbstractData {
 
     Object toJsonObject() const override {
         if (!buses)
-            return { {"error_message", "not found"s}};
+            return { {"error_message", "not found"}};
 
         auto b = Array();
         for (const auto& bus : *(buses)) {
-            b.push_back(string(bus));
+            b.push_back(std::string(bus));
         }
 
         return {{"buses", move(b)}};
@@ -75,30 +74,30 @@ struct StopData: AbstractData {
 };
 
 struct RouteData: AbstractData {
-    tuple<double, list<DataBase::RouteItem>> data;
+    std::tuple<double, std::list<DataBase::RouteItem>> data;
 
-    RouteData(int request_id, tuple<double, list<DataBase::RouteItem>> data) :
+    RouteData(int request_id, decltype(data) data) :
             AbstractData(request_id), data(move(data)) {
     }
 
-    ostream& toStream(ostream& out) const override {
+    std::ostream& toStream(std::ostream& out) const override {
         // do nothing, not applicable
         return out;
     }
 
     Object toJsonObject() const override {
         const auto& [total_time, route] = data;
-        if (total_time < 0) return {{"error_message", "not found"s }};
+        if (total_time < 0) return {{"error_message", "not found" }};
 
         Object res  = {{"total_time",  total_time}};
         Array items;
         for(const auto& [type, time, name, span_count]: route) {
             Object item = {{"type", TypeToString(type)}, {"time", time}};
             if(type == DataBase::RouteItemType::BUS) {
-                item["bus"] = string(name);
+                item["bus"] = std::string(name);
                 item["span_count"] = span_count;
             } else if (type == DataBase::RouteItemType::WAIT) {
-                item["stop_name"] = string(name);
+                item["stop_name"] = std::string(name);
             }
             items.push_back(move(item));
         }
@@ -107,7 +106,7 @@ struct RouteData: AbstractData {
         return res;
     }
 
-    string TypeToString(DataBase::RouteItemType type) const {
+    std::string TypeToString(DataBase::RouteItemType type) const {
         return type == DataBase::RouteItemType::BUS ? "Bus" : "Wait";
     }
 };
@@ -120,7 +119,7 @@ struct MapData: AbstractData {
             AbstractData(request_id), map(std::move(map)) {
     }
 
-    ostream& toStream(ostream& out) const override {
+    std::ostream& toStream(std::ostream& out) const override {
         return out << map;
     }
 
@@ -141,7 +140,7 @@ struct MapData: AbstractData {
     }
 };
 
-const unordered_map<string_view, Request::Type> STR_TO_REQUEST_TYPE = {
+const std::unordered_map<std::string_view, Request::Type> STR_TO_REQUEST_TYPE = {
         { "Stop", Request::Type::STOP },
         { "Bus", Request::Type::BUS },
         { "Route", Request::Type::ROUTE},
@@ -153,45 +152,45 @@ struct BusReadRequest: ReadRequest {
     BusReadRequest() :
             ReadRequest(Type::BUS) {
     }
-    void ParseFrom(string_view input) override {
-        name = string(input);
+    void ParseFrom(std::string_view input) override {
+        name = std::string(input);
     }
 
     void ParseOther(const Object& data) override {
         name = data.at("name").AsString();
     }
 
-    unique_ptr<AbstractData> Process(const DataBase& db) const override {
-        return make_unique<BusData>(id, name, db.GetBusRoute(name));
+    std::unique_ptr<AbstractData> Process(const DataBase& db) const override {
+        return std::make_unique<BusData>(id, name, db.GetBusRoute(name));
     }
 
-    string name;
+    std::string name;
 };
 
 struct StopReadRequest: ReadRequest {
     StopReadRequest() :
             ReadRequest(Type::STOP) {
     }
-    void ParseFrom(string_view input) override {
-        name = string(input);
+    void ParseFrom(std::string_view input) override {
+        name = std::string(input);
     }
 
     void ParseOther(const Object& data) override {
         name = data.at("name").AsString();
     }
 
-    unique_ptr<AbstractData> Process(const DataBase& db) const override {
-        return make_unique<StopData>(id, name, db.GetStopBuses(name));
+    std::unique_ptr<AbstractData> Process(const DataBase& db) const override {
+        return std::make_unique<StopData>(id, name, db.GetStopBuses(name));
     }
 
-    string name;
+    std::string name;
 };
 
 struct RouteReadRequest: ReadRequest {
     RouteReadRequest() :
             ReadRequest(Type::ROUTE) {
     }
-    void ParseFrom(string_view input) override {
+    void ParseFrom(std::string_view input) override {
         // do nothing,
     }
 
@@ -200,24 +199,24 @@ struct RouteReadRequest: ReadRequest {
         to = data.at("to").AsString();
     }
 
-    unique_ptr<AbstractData> Process(const DataBase& db) const override {
-        return make_unique<RouteData>(id, db.GetRoute(from, to));
+    std::unique_ptr<AbstractData> Process(const DataBase& db) const override {
+        return std::make_unique<RouteData>(id, db.GetRoute(from, to));
     }
 
-    string from, to;
+    std::string from, to;
 };
 
 struct MapReadRequest: ReadRequest {
     MapReadRequest() : ReadRequest(Type::MAP) {
     }
 
-    void ParseFrom(string_view input) override {
+    void ParseFrom(std::string_view input) override {
     }
 
     void ParseOther(const Object& data) override {
     }
 
-    unique_ptr<AbstractData> Process(const DataBase& db) const override {
+    std::unique_ptr<AbstractData> Process(const DataBase& db) const override {
         return std::make_unique<MapData>(id, db.BuildMap());
     }
 };
@@ -227,15 +226,15 @@ struct StopModifyRequest: ModifyRequest {
             ModifyRequest(Type::STOP) {
     }
 
-    void ParseFrom(string_view input) override {
-        name = string(ReadToken(input, ": "));
+    void ParseFrom(std::string_view input) override {
+        name = std::string(ReadToken(input, ": "));
         position.latitude = ConvertToDouble(ReadToken(input, ", "));
         position.longitude = ConvertToDouble(ReadToken(input, ", "));
 
         while (!input.empty()) {
             auto temp = ReadToken(input, ", ");
             auto distance = ConvertToInt(ReadToken(temp, "m to "));
-            distances.push_back({string(temp), distance});
+            distances.push_back({std::string(temp), distance});
         }
     }
 
@@ -254,17 +253,17 @@ struct StopModifyRequest: ModifyRequest {
         db.AddStop(move(name), position, move(distances));
     }
 
-    string name;
+    std::string name;
     Point position;
-    list<pair<string, int>> distances;
+    std::list<std::pair<std::string, int>> distances;
 };
 
 struct BusModifyRequest: ModifyRequest {
     BusModifyRequest() :
             ModifyRequest(Type::BUS) {
     }
-    void ParseFrom(string_view input) override {
-        name = string(ReadToken(input, ": "));
+    void ParseFrom(std::string_view input) override {
+        name = std::string(ReadToken(input, ": "));
         route = Route::ParseRoute(input);
     }
 
@@ -277,8 +276,8 @@ struct BusModifyRequest: ModifyRequest {
         db.AddBus(move(name), move(route));
     }
 
-    string name;
-    shared_ptr<Route> route;
+    std::string name;
+    std::shared_ptr<Route> route;
 };
 
 }
@@ -295,19 +294,19 @@ Node AbstractData::toJson() const {
     return res;
 }
 
-ostream& operator<<(ostream& out, const AbstractData& data) {
+std::ostream& operator<<(std::ostream& out, const AbstractData& data) {
     return data.toStream(out);
 }
 
 Request::Request(Type type): type(type) {
 }
 
-optional<Request::Type> ConvertRequestTypeFromString(string_view type_str) {
+std::optional<Request::Type> ConvertRequestTypeFromString(std::string_view type_str) {
     if (const auto it = STR_TO_REQUEST_TYPE.find(type_str); it
             != STR_TO_REQUEST_TYPE.end()) {
         return it->second;
     }
-    return nullopt;
+    return std::nullopt;
 }
 
 void ReadRequest::ParseFrom(const Object& data) {
@@ -315,27 +314,27 @@ void ReadRequest::ParseFrom(const Object& data) {
     ParseOther(data);
 }
 
-unique_ptr<ModifyRequest> ModifyRequest::Create(Request::Type type) {
+std::unique_ptr<ModifyRequest> ModifyRequest::Create(Request::Type type) {
     switch (type) {
         case Request::Type::STOP:
-            return make_unique<StopModifyRequest>();
+            return std::make_unique<StopModifyRequest>();
         case Request::Type::BUS:
-            return make_unique<BusModifyRequest>();
+            return std::make_unique<BusModifyRequest>();
     }
 
     return nullptr;
 }
 
-unique_ptr<ReadRequest> ReadRequest::Create(Request::Type type) {
+std::unique_ptr<ReadRequest> ReadRequest::Create(Request::Type type) {
     switch (type) {
         case Request::Type::BUS:
-            return make_unique<BusReadRequest>();
+            return std::make_unique<BusReadRequest>();
         case Request::Type::STOP:
-            return make_unique<StopReadRequest>();
+            return std::make_unique<StopReadRequest>();
         case Request::Type::ROUTE:
-            return make_unique<RouteReadRequest>();
+            return std::make_unique<RouteReadRequest>();
         case Request::Type::MAP:
-            return make_unique<MapReadRequest>();
+            return std::make_unique<MapReadRequest>();
     }
 
     return nullptr;
