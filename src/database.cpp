@@ -76,35 +76,70 @@ class DataBase::Render {
     void ToSvgPoints() const {
         if (not stops2points_.empty()) return;
 
+        std::unordered_map<std::string_view, std::unordered_set<std::string_view>> adjasted_stops;
+        for (const auto& [_, route]: buses_) {
+            auto route_line = route->Stops();
+            if (route_line.size() <= 1) continue;
+            auto it1 = std::begin(route_line);
+
+            for (auto it2 = it1++; it1 != std::end(route_line); ++it2, ++it1) {
+                adjasted_stops[*(*it1)].insert(*(*it2));
+                adjasted_stops[*(*it2)].insert(*(*it1));
+            }
+        }
+
         std::vector<std::pair<Svg::Point, Render::Stops::const_iterator>> points;
         points.reserve(stops_.size());
         for (auto it = std::cbegin(stops_); it != std::cend(stops_); ++it)
             points.emplace_back(Svg::Point{it->second.longitude, it->second.latitude}, it);
 
+        static auto GetIndexes = [](auto& points, const auto& adjasted_stops, auto key){
+            std::sort(std::begin(points), std::end(points),
+                      [key](auto& l, auto& r){return key(l) < key(r);});
+
+            std::vector<int> indexes(points.size(), 0);
+            int idx = 0;
+            std::list<std::string_view> merged_stops = {points[0].second->first};
+            for (size_t i = 1; i < points.size(); ++i) {
+                auto [_, it] = points[i];
+                std::string_view current_stop = it->first;
+                for (auto stop: merged_stops) {
+                    if (auto it = adjasted_stops.find(stop); it != std::end(adjasted_stops) &&
+                    it->second.count(current_stop) != 0) {
+                        idx += 1;
+                        merged_stops.clear();
+                        break;
+                    }
+                }
+                indexes[i] = idx;
+                merged_stops.push_back(current_stop);
+            }
+
+            return indexes;
+        };
+
         {
             static auto key_x = [](auto& pair)->double&{return pair.first.x;};
-            std::sort(std::begin(points), std::end(points),
-                      [](auto& l, auto& r){return key_x(l) < key_x(r);});
+            auto indexes = GetIndexes(points, adjasted_stops, key_x);
 
-            const auto n = points.size();
-            auto x_step = n <= 1 ? decltype(render_settings_.width){} :
-                          (render_settings_.width - 2 * render_settings_.padding) / (n - 1);
+            const auto n = indexes.back();
+            auto x_step = n <= 0 ? decltype(render_settings_.width){} :
+                          (render_settings_.width - 2 * render_settings_.padding) / n;
 
-            for (size_t i = 0; i < n; ++i)
-                key_x(points[i]) = i * x_step + render_settings_.padding;
+            for (size_t i = 0; i < points.size(); ++i)
+                key_x(points[i]) = indexes[i] * x_step + render_settings_.padding;
         }
 
         {
             static auto key_y = [](auto& pair)->double&{return pair.first.y;};
-            std::sort(std::begin(points), std::end(points),
-                      [](auto& l, auto& r){return key_y(l) < key_y(r);});
+            auto indexes = GetIndexes(points, adjasted_stops, key_y);
 
-            const auto n = points.size();
-            auto y_step = n <= 1 ? decltype(render_settings_.width){} :
-                          (render_settings_.height - 2 * render_settings_.padding) / (n - 1);
+            const auto n = indexes.back();
+            auto y_step = n <= 0 ? decltype(render_settings_.width){} :
+                          (render_settings_.height - 2 * render_settings_.padding) / n;
 
-            for (size_t i = 0; i < n; ++i)
-                key_y(points[i]) = render_settings_.height - render_settings_.padding - i * y_step;
+            for (size_t i = 0; i < points.size(); ++i)
+                key_y(points[i]) = render_settings_.height - render_settings_.padding - indexes[i] * y_step;
         }
 
         for(auto [p, it]: points)
