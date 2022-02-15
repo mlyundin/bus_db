@@ -75,42 +75,40 @@ namespace busdb {
 class DataBase::Render {
     void ToSvgPoints() const {
         if (not stops2points_.empty()) return;
-        auto begin = std::begin(stops_), end = std::end(stops_);
 
-        std::list<busdb::Point> stops;
-        std::transform(begin, end, std::back_inserter(stops), [](const auto& pair){
-            return pair.second;
-        });
+        std::vector<std::pair<Svg::Point, Render::Stops::const_iterator>> points;
+        points.reserve(stops_.size());
+        for (auto it = std::cbegin(stops_); it != std::cend(stops_); ++it)
+            points.emplace_back(Svg::Point{it->second.longitude, it->second.latitude}, it);
 
-        static auto is_equal = [](auto a, auto b){
-            return std::fabs(a - b) < 0.0001;
-        };
+        {
+            static auto key_x = [](auto& pair)->double&{return pair.first.x;};
+            std::sort(std::begin(points), std::end(points),
+                      [](auto& l, auto& r){return key_x(l) < key_x(r);});
 
-        auto[min_lat_pos, max_lat_pos]  = MinmaxElementKey(std::begin(stops), std::end(stops),
-                                                           [](auto point) { return point.latitude; });
-        auto[min_lon_pos, max_lon_pos]  = MinmaxElementKey(std::begin(stops), std::end(stops),
-                                                           [](auto point) { return point.longitude; });
+            const auto n = points.size();
+            auto x_step = n <= 1 ? decltype(render_settings_.width){} :
+                          (render_settings_.width - 2 * render_settings_.padding) / (n - 1);
 
-        auto  min_lat = min_lat_pos->latitude, min_lon = min_lon_pos->longitude,
-                max_lat = max_lat_pos->latitude, max_lon = max_lon_pos->longitude;
-
-        auto diff_lat = max_lat - min_lat, diff_lon = max_lon - min_lon;
-
-        using type_of_val = decltype(diff_lon);
-        const auto zero_val = type_of_val{};
-        auto padding = render_settings_.padding;
-        auto width_zoom_coef = is_equal(diff_lon, zero_val) ?
-                               zero_val : (render_settings_.width - 2 * padding) / diff_lon;
-        auto height_zoom_coef = is_equal(diff_lat, zero_val) ?
-                                zero_val : (render_settings_.height - 2 * padding) / diff_lat;
-
-        auto zoom_coef = is_equal(width_zoom_coef, zero_val) ||
-                         (!is_equal(height_zoom_coef, zero_val) && height_zoom_coef < width_zoom_coef) ? height_zoom_coef : width_zoom_coef;
-
-        for (auto it = begin; it != end; ++it) {
-            stops2points_.insert({it->first, {(it->second.longitude - min_lon) * zoom_coef + padding,
-                                    (max_lat - it->second.latitude) * zoom_coef + padding}});
+            for (size_t i = 0; i < n; ++i)
+                key_x(points[i]) = i * x_step + render_settings_.padding;
         }
+
+        {
+            static auto key_y = [](auto& pair)->double&{return pair.first.y;};
+            std::sort(std::begin(points), std::end(points),
+                      [](auto& l, auto& r){return key_y(l) < key_y(r);});
+
+            const auto n = points.size();
+            auto y_step = n <= 1 ? decltype(render_settings_.width){} :
+                          (render_settings_.height - 2 * render_settings_.padding) / (n - 1);
+
+            for (size_t i = 0; i < n; ++i)
+                key_y(points[i]) = render_settings_.height - render_settings_.padding - i * y_step;
+        }
+
+        for(auto [p, it]: points)
+            stops2points_.insert({it->first, p});
     }
 
 public:
