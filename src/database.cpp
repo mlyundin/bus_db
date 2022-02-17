@@ -73,9 +73,7 @@ namespace {
 namespace busdb {
 
 class DataBase::Render {
-    void ToSvgPoints() const {
-        if (not stops2points_.empty()) return;
-
+    auto GetAdjustedStops() const {
         std::unordered_map<std::string_view, std::unordered_set<std::string_view>> adjasted_stops;
         for (const auto& [_, route]: buses_) {
             auto route_line = route->Stops();
@@ -88,23 +86,85 @@ class DataBase::Render {
             }
         }
 
-        std::vector<std::pair<Svg::Point, Render::Stops::const_iterator>> points;
-        points.reserve(stops_.size());
-        for (auto it = std::cbegin(stops_); it != std::cend(stops_); ++it)
-            points.emplace_back(Svg::Point{it->second.longitude, it->second.latitude}, it);
+        return adjasted_stops;
+    }
 
-        static auto GetIndexes = [](auto& points, const auto& adjasted_stops, auto key){
+    auto SmoothStops() const {
+        std::unordered_set<std::string> pivot_stops;
+        {
+            std::unordered_map<std::string_view, int> bus_count;
+            for (const auto& [_, route]: buses_) {
+                for (auto it: route->Stops()) {
+                    bus_count[*it] += 1;
+                }
+
+                auto [start, end] = route->EdgeStops();
+                pivot_stops.insert(*start);
+                pivot_stops.insert(*end);
+            }
+
+            for (const auto& [stop, _]: stops_) {
+                auto count = bus_count[stop];
+                if (count == 0 || count > 2) pivot_stops.insert(stop);
+            }
+        }
+
+        std::unordered_map<std::string_view, Svg::Point> res;
+        for (const auto& [_, route]: buses_) {
+            auto line_route = route->Stops();
+            auto it = std::begin(line_route), end = std::end(line_route);
+            std::vector<decltype(line_route)::value_type> to_smooth = {*it};
+            for (++it; it != end; ++it) {
+                const std::string& stop = *(*it);
+                if (pivot_stops.count(stop) == 0) {
+                    to_smooth.push_back(*it);
+                    continue;
+                }
+
+                if (auto n = to_smooth.size(); n > 1) {
+                    auto ps = stops_.at(*to_smooth[0]), pe = stops_.at(stop);
+                    double lon_step = (pe.longitude - ps.longitude) / n;
+                    double lat_step = (pe.latitude - ps.latitude) / n;
+
+                    for (int i = 1; i < n; ++i) {
+                        res[*to_smooth[i]] = {ps.longitude + lon_step * i, ps.latitude + lat_step * i};
+                    }
+                }
+
+                to_smooth = {*it};
+            }
+        }
+
+        for (const auto& stop: pivot_stops) {
+            auto it = stops_.find(stop);
+            res[it->first] = {it->second.longitude, it->second.latitude};
+        }
+
+        return res;
+    }
+
+    void ToSvgPoints() const {
+        if (not stops2points_.empty()) return;
+
+        auto stops = SmoothStops();
+
+        if (stops.size() != stops_.size()) throw int(1);
+        std::vector<std::pair<Svg::Point, std::string_view>> points;
+        points.reserve(stops.size());
+        for (auto it = std::cbegin(stops); it != std::cend(stops); ++it)
+            points.emplace_back(it->second, it->first);
+
+        static auto GetIndexes = [](auto& points, const auto& adjusted_stops, auto key){
             std::sort(std::begin(points), std::end(points),
                       [key](auto& l, auto& r){return key(l) < key(r);});
 
             std::vector<int> indexes(points.size(), 0);
             int idx = 0;
-            std::list<std::string_view> merged_stops = {points[0].second->first};
+            std::list<std::string_view> merged_stops = {points[0].second};
             for (size_t i = 1; i < points.size(); ++i) {
-                auto [_, it] = points[i];
-                std::string_view current_stop = it->first;
+                auto [_, current_stop] = points[i];
                 for (auto stop: merged_stops) {
-                    if (auto it = adjasted_stops.find(stop); it != std::end(adjasted_stops) &&
+                    if (auto it = adjusted_stops.find(stop); it != std::end(adjusted_stops) &&
                     it->second.count(current_stop) != 0) {
                         idx += 1;
                         merged_stops.clear();
@@ -118,9 +178,10 @@ class DataBase::Render {
             return indexes;
         };
 
+        auto adjusted_stops = GetAdjustedStops();
         {
             static auto key_x = [](auto& pair)->double&{return pair.first.x;};
-            auto indexes = GetIndexes(points, adjasted_stops, key_x);
+            auto indexes = GetIndexes(points, adjusted_stops, key_x);
 
             const auto n = indexes.back();
             auto x_step = n <= 0 ? decltype(render_settings_.width){} :
@@ -132,7 +193,7 @@ class DataBase::Render {
 
         {
             static auto key_y = [](auto& pair)->double&{return pair.first.y;};
-            auto indexes = GetIndexes(points, adjasted_stops, key_y);
+            auto indexes = GetIndexes(points, adjusted_stops, key_y);
 
             const auto n = indexes.back();
             auto y_step = n <= 0 ? decltype(render_settings_.width){} :
@@ -142,8 +203,8 @@ class DataBase::Render {
                 key_y(points[i]) = render_settings_.height - render_settings_.padding - indexes[i] * y_step;
         }
 
-        for(auto [p, it]: points)
-            stops2points_.insert({it->first, p});
+        for(auto [p, name]: points)
+            stops2points_.insert({name, p});
     }
 
 public:
