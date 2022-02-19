@@ -92,28 +92,35 @@ class DataBase::Render {
     auto SmoothStops() const {
         std::unordered_set<std::string> pivot_stops;
         {
-            std::unordered_map<std::string_view, int> bus_count;
+            std::unordered_map<std::string, int> bus_count;
+            std::unordered_map<std::string, Buses::mapped_type> first_bus;
             for (const auto& [_, route]: buses_) {
                 for (auto it: route->Stops()) {
-                    bus_count[*it] += 1;
+                    const auto& c_stop = *it;
+                    if (auto [pos, inserted] = first_bus.emplace(c_stop, route);
+                    !inserted && pos->second != route) bus_count[c_stop] += 10;
+
+                    bus_count[c_stop] += 1;
                 }
 
-                auto [start, end] = route->EdgeStops();
-                pivot_stops.insert(*start);
-                pivot_stops.insert(*end);
+                for (auto item: route->EdgeStops())
+                    pivot_stops.insert(*item);
             }
 
             for (const auto& [stop, _]: stops_) {
-                auto count = bus_count[stop];
-                if (count == 0 || count > 2) pivot_stops.insert(stop);
+                if (auto count = bus_count[stop]; count == 0 || count > 2)
+                    pivot_stops.insert(stop);
             }
         }
 
         std::unordered_map<std::string_view, Svg::Point> res;
         for (const auto& [_, route]: buses_) {
             auto line_route = route->Stops();
+            if (line_route.empty())
+                continue;
+
             auto it = std::begin(line_route), end = std::end(line_route);
-            std::vector<decltype(line_route)::value_type> to_smooth = {*it};
+            std::vector to_smooth = {*it};
             for (++it; it != end; ++it) {
                 const std::string& stop = *(*it);
                 if (pivot_stops.count(stop) == 0) {
@@ -122,12 +129,13 @@ class DataBase::Render {
                 }
 
                 if (auto n = to_smooth.size(); n > 1) {
-                    auto ps = stops_.at(*to_smooth[0]), pe = stops_.at(stop);
-                    double lon_step = (pe.longitude - ps.longitude) / n;
-                    double lat_step = (pe.latitude - ps.latitude) / n;
+                    const auto ps = stops_.at(*to_smooth[0]), pe = stops_.at(stop);
+                    const double lon_step = (pe.longitude - ps.longitude) / n;
+                    const double lat_step = (pe.latitude - ps.latitude) / n;
 
                     for (int i = 1; i < n; ++i) {
-                        res[*to_smooth[i]] = {ps.longitude + lon_step * i, ps.latitude + lat_step * i};
+                        res[stops_.find(*to_smooth[i])->first] =
+                                {ps.longitude + lon_step * i, ps.latitude + lat_step * i};
                     }
                 }
 
