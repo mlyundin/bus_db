@@ -90,10 +90,10 @@ class DataBase::Render {
     }
 
     auto SmoothStops() const {
-        std::unordered_set<std::string> pivot_stops;
+        std::unordered_set<std::string_view> pivot_stops;
         {
-            std::unordered_map<std::string, int> bus_count;
-            std::unordered_map<std::string, Buses::mapped_type> first_bus;
+            std::unordered_map<std::string_view, int> bus_count;
+            std::unordered_map<std::string_view, Buses::mapped_type> first_bus;
             for (const auto& [_, route]: buses_) {
                 for (auto it: route->Stops()) {
                     const auto& c_stop = *it;
@@ -114,13 +114,19 @@ class DataBase::Render {
         }
 
         std::unordered_map<std::string_view, Svg::Point> res;
+        for (const auto& [stop, point]: stops_) {
+            if (pivot_stops.count(stop)) {
+                res[stop] = {point.longitude, point.latitude};
+            }
+        }
+
         for (const auto& [_, route]: buses_) {
             auto line_route = route->Stops();
             if (line_route.empty())
                 continue;
 
             auto it = std::begin(line_route), end = std::end(line_route);
-            std::vector to_smooth = {*it};
+            std::list to_smooth = {*it};
             for (++it; it != end; ++it) {
                 const std::string& stop = *(*it);
                 if (pivot_stops.count(stop) == 0) {
@@ -128,24 +134,19 @@ class DataBase::Render {
                     continue;
                 }
 
-                if (auto n = to_smooth.size(); n > 1) {
-                    const auto ps = stops_.at(*to_smooth[0]), pe = stops_.at(stop);
+                if (const auto n = to_smooth.size(); n > 1) {
+                    const auto ps = stops_.at(*to_smooth.front()), pe = stops_.at(stop);
                     const double lon_step = (pe.longitude - ps.longitude) / n;
                     const double lat_step = (pe.latitude - ps.latitude) / n;
 
+                    auto pos = std::begin(to_smooth);
                     for (int i = 1; i < n; ++i) {
-                        res[stops_.find(*to_smooth[i])->first] =
-                                {ps.longitude + lon_step * i, ps.latitude + lat_step * i};
+                        res[**(++pos)] = {ps.longitude + lon_step * i, ps.latitude + lat_step * i};
                     }
                 }
 
                 to_smooth = {*it};
             }
-        }
-
-        for (const auto& stop: pivot_stops) {
-            auto it = stops_.find(stop);
-            res[it->first] = {it->second.longitude, it->second.latitude};
         }
 
         return res;
