@@ -3,26 +3,13 @@
 #include <string>
 #include <algorithm>
 #include <tuple>
-#include <cmath>
 
 #include "database.h"
 #include "route.h"
-#include "code_profile.h"
 
 using namespace Graph;
 
 namespace {
-    template<class Iter, class Key>
-    std::array<Iter, 2> MinmaxElementKey(Iter begin, Iter end, Key key) {
-        auto min_elem = begin, max_elem = begin;
-        for(++begin; begin != end; ++begin) {
-            if (key(*begin) < key(*min_elem)) min_elem = begin;
-            if (key(*begin) > key(*max_elem)) max_elem = begin;
-        }
-
-        return {min_elem, max_elem};
-    }
-
     using namespace Json;
     double GetDouble(const Node& node) {
         return (Node::Type)node.index() == Node::Type::DoubleType ? node.AsDouble() : node.AsInt();
@@ -77,9 +64,9 @@ class DataBase::Render {
         std::unordered_map<std::string_view, std::unordered_set<std::string_view>> adjusted_stops;
         for (const auto& [_, route]: buses_) {
             auto route_line = route->Stops();
-            if (route_line.size() <= 1) continue;
-            auto it1 = std::begin(route_line);
+            if (route_line.size() < 2) continue;
 
+            auto it1 = std::begin(route_line);
             for (auto it2 = it1++; it1 != std::end(route_line); ++it2, ++it1) {
                 adjusted_stops[**it1].insert(**it2);
                 adjusted_stops[**it2].insert(**it1);
@@ -167,21 +154,26 @@ class DataBase::Render {
             std::sort(std::begin(points), std::end(points),
                       [key](auto& l, auto& r){return key(l) < key(r);});
 
-            std::vector<int> indexes(points.size(), 0);
-            int idx = 0;
-            std::list<std::string_view> merged_stops = {points[0].second};
-            for (size_t i = 1; i < points.size(); ++i) {
+            const auto stop2pos = [&points](){
+                std::unordered_map<std::string_view, int> res;
+                for (int i = 0; i < points.size(); ++i) {
+                    res[points[i].second] = i;
+                }
+                return res;
+            }();
+
+            const auto n = points.size();
+            std::vector<int> indexes(n, -1);
+            for (size_t i = 0; i < n; ++i) {
                 auto [_, current_stop] = points[i];
-                for (auto stop: merged_stops) {
-                    if (auto it = adjusted_stops.find(stop); it != std::end(adjusted_stops) &&
-                    it->second.count(current_stop) != 0) {
-                        idx += 1;
-                        merged_stops.clear();
-                        break;
+                int idx = -1;
+                if (auto it = adjusted_stops.find(current_stop); it != std::end(adjusted_stops)) {
+                    for (auto adjusted_stop: it->second) {
+                        idx = std::max(idx, indexes[stop2pos.at(adjusted_stop)]);
                     }
                 }
-                indexes[i] = idx;
-                merged_stops.push_back(current_stop);
+
+                indexes[i] = idx + 1;
             }
 
             return indexes;
@@ -192,7 +184,7 @@ class DataBase::Render {
             static auto key_x = [](auto& pair)->double&{return pair.first.x;};
             const auto indexes = GetIndexes(points, adjusted_stops, key_x);
 
-            const auto n = indexes.back();
+            const auto n = *std::max_element(std::begin(indexes), std::end(indexes));
             const auto x_step = n <= 0 ? decltype(render_settings_.width){} :
                           (render_settings_.width - 2 * render_settings_.padding) / n;
 
@@ -204,7 +196,7 @@ class DataBase::Render {
             static auto key_y = [](auto& pair)->double&{return pair.first.y;};
             const auto indexes = GetIndexes(points, adjusted_stops, key_y);
 
-            const auto n = indexes.back();
+            const auto n = *std::max_element(std::begin(indexes), std::end(indexes));
             const auto y_step = n <= 0 ? decltype(render_settings_.width){} :
                           (render_settings_.height - 2 * render_settings_.padding) / n;
 
