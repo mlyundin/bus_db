@@ -1,4 +1,6 @@
 namespace {
+    const std::string round_stroke = "round";
+
     using namespace Json;
     double GetDouble(const Node& node) {
         return (Node::Type)node.index() == Node::Type::DoubleType ? node.AsDouble() : node.AsInt();
@@ -257,7 +259,6 @@ namespace busdb {
             std::list<std::string_view> full_route;
             std::list<Svg::Polyline> polylines;
             {
-                const std::string round_stroke = "round";
                 for (int i = 1; i < items.size(); i += 2) {
                     const auto& bus_number = items[i];
                     std::string_view start_stop = items[i - 1], stop_stop = items[i + 1];
@@ -295,14 +296,12 @@ namespace busdb {
             for (const auto& layer: render_settings_.layers) {
                 if (layer == "bus_lines")
                 {
-                    // bus_lines
                     for (auto& poly: polylines) {
                         map.Add(poly);
                     }
                 }
                 else if (layer == "bus_labels")
                 {
-                    // bus_labels
                     for (int i = 1; i < items.size(); i += 2) {
                         const auto &bus_number = items[i], first_stop = items[i - 1],
                                 last_stop = items[i + 1];
@@ -319,7 +318,6 @@ namespace busdb {
                 }
                 else if (layer == "stop_points")
                 {
-                    // stop_points
                     for (auto stop_name: full_route) {
                         map.Add(Svg::Circle{}.SetFillColor("white")
                                         .SetRadius(render_settings_.stop_radius).SetCenter(stops2points_.at(stop_name)));
@@ -327,9 +325,7 @@ namespace busdb {
                 }
                 else if (layer == "stop_labels")
                 {
-                    // stop_labels
-                    for (int i = 0; i < items.size(); ++i) {
-                        if (i % 2 != 0) continue;
+                    for (int i = 0; i < items.size(); i += 2) {
                         RenderStopLabel(map, items[i]);
                     }
                 }
@@ -359,7 +355,6 @@ namespace busdb {
         RenderSettings render_settings_;
 
         void RenderBusLines(Svg::Document &map) const {
-            static const std::string round_stroke = "round";
             for (const auto&[name, route]: buses_) {
                 Svg::Polyline polyline;
 
@@ -376,8 +371,6 @@ namespace busdb {
         }
 
         void RenderBusLabel(Svg::Document &map, const std::string& bus_number, std::string_view stop_name) const {
-            static const std::string round_stroke = "round";
-
             Svg::Text background;
             background.SetData(bus_number).SetFontFamily("Verdana").SetFontSize(render_settings_.bus_label_font_size).
                     SetFontWeight("bold").SetOffset(render_settings_.bus_label_offset).SetPoint(
@@ -413,7 +406,6 @@ namespace busdb {
         }
 
         void RenderStopLabel(Svg::Document &map, const std::string& name) const {
-            static const std::string round_stroke = "round";
             Svg::Text background;
             background.SetData(name).SetFontFamily("Verdana").SetFontSize(render_settings_.stop_label_font_size).
                     SetOffset(render_settings_.stop_label_offset).SetPoint(stops2points_.at(name));
