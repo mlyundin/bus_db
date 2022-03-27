@@ -90,6 +90,19 @@ namespace Svg {
     Text& Text::SetFontWeight(const std::string& fontWeight){font_weight_ = fontWeight; return  *this;}
     Text& Text::SetData(const std::string& data) {data_ = data; return *this;}
 
+    std::ostream& operator<<(std::ostream& out, const Rect& rect) {
+        out << "<rect ";
+        out << "x=\"" << rect.tl_.x << "\" ";
+        out << "y=\"" << rect.tl_.y << "\" ";
+        out << "width=\"" << rect.br_.x - rect.tl_.x << "\" ";
+        out << "height=\"" << rect.br_.y - rect.tl_.y << "\" ";
+
+        return out << static_cast<const BaseObject<Rect>&>(rect) << "/>";
+    }
+
+    Rect& Rect::SetTLPoint(Point tl) { tl_ = tl; return *this;}
+    Rect& Rect::SetBRPoint(Point br) { br_ = br; return *this;}
+
     std::ostream& operator<<(std::ostream& out, const Document& doc) {
         out << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>";
         out << "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">";

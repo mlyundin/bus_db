@@ -80,9 +80,18 @@ namespace Svg {
         Text& SetData(const std::string&);
         friend std::ostream& operator<<(std::ostream&, const Text&);
     };
+
+    class Rect: public BaseObject<Rect> {
+        Point tl_;
+        Point br_;
+    public:
+        Rect& SetTLPoint(Point);
+        Rect& SetBRPoint(Point br);
+        friend std::ostream& operator<<(std::ostream&, const Rect&);
+    };
+
     class Document {
-        using Item = std::variant<Text, Polyline, Circle>;
-        std::vector<Item> items_;
+        std::vector<std::variant<Text, Polyline, Circle, Rect>> items_;
 
     public:
         template<class T>

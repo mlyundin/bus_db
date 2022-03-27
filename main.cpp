@@ -13,11 +13,6 @@ using namespace busdb;
 using namespace Json;
 
 namespace {
-    void ReadSettings(const Object &in_data, DataBase &db) {
-        db.SetRouteSettings(in_data);
-        db.SetRenderSettings(in_data);
-    }
-
     template<class RequestType>
     auto ReadRequests(std::istream &in_stream = std::cin) {
         std::list<std::unique_ptr<RequestType>> requests;
@@ -118,16 +113,18 @@ int main() {
 #else
     auto in_data = Load(in);
     auto& requests = in_data.GetRoot().AsObject();
-    ReadSettings(requests, db);
 
+    db.SetRouteSettings(requests);
     const auto modify_requests = ReadJsonRequests<ModifyRequest>(
             requests.at("base_requests").AsArray());
     const auto read_requests = ReadJsonRequests<ReadRequest>(
             requests.at("stat_requests").AsArray());
 
     ProcessModifyRequest(modify_requests, db);
-    auto doc = ResponsesToDocument(ProcessReadRequests(read_requests, db));
+    // Important should be after fill data in db
+    db.SetRenderSettings(requests);
 
+    auto doc = ResponsesToDocument(ProcessReadRequests(read_requests, db));
     Save(doc, out);
 #endif
 

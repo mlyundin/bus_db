@@ -90,35 +90,45 @@ Graph::VertexId DataBase::GetWaitStopVertexId(std::string_view stop) const{
      return -1;
 }
 
-std::tuple<double, std::list<DataBase::RouteItem>>
+
+std::tuple<double, DataBase::StopsRoute, Svg::Document>
 DataBase::GetRoute(const std::string& from, const std::string& to) const {
-    if (!router_) return {-1, {}};
-    if (from == to) return {0, {}};
+    if (!router_) return {-1, {}, {}};
+
+    auto map = BuildMap();
+    if (render_) render_->AddRect(map);
+
+    if (from == to) return {0, {}, std::move(map)};
 
     auto info = router_->BuildRoute(GetWaitStopVertexId(from),  GetWaitStopVertexId(to));
-    if (!info) return {-1, {}};
+    if (!info) return {-1, {}, {}};
     assert(info->edge_count >= 2);
 
     // first stops_.size() edges are wait bus edges
-    auto start_edge_id = stops_.size();
-    std::list<RouteItem> route;
+    const auto start_edge_id = stops_.size();
+    StopsRoute route;
     for (auto i = 0; i < info->edge_count; ++i) {
         auto edge_id = router_->GetRouteEdge(info->id, i);
-
         const auto& info = routes_->GetEdge(edge_id);
 
         if (i % 2 == 0) {
-            route.push_back({RouteItemType::WAIT, info.weight,
-                vertex_to_stop_[info.to], 0});
+            route.emplace_back(RouteItemType::WAIT, info.weight,
+                               vertex2stop_[info.to], 0);
         } else {
             assert(edge_id >= start_edge_id);
-            const auto& [bus_number, span_count] = edge_to_bus_[edge_id - start_edge_id];
-            route.push_back({RouteItemType::BUS, info.weight, bus_number, span_count});
+            const auto& [bus_number, span_count] = edge2bus_[edge_id - start_edge_id];
+            route.emplace_back(RouteItemType::BUS, info.weight, bus_number, span_count);
         }
     }
 
+    if (render_) {
+        route.emplace_back(RouteItemType::WAIT, 0, to, 0);
+        render_->AddRoute(map, route);
+        route.pop_back();
+    }
+
     router_->ReleaseRoute(info->id);
-    return {info->weight, move(route)};
+    return {info->weight, std::move(route), std::move(map)};
 }
 
 void DataBase::SetRouteSettings(const Json::Object& in_data) {
@@ -144,17 +154,17 @@ void DataBase::BuildRoutes() {
 
     auto stops_size = stops_.size();
 
-    vertex_to_stop_.reserve(stops_size);
-    vertex_to_stop_.clear();
+    vertex2stop_.reserve(stops_size);
+    vertex2stop_.clear();
     stop_to_vertex_.clear();
-    edge_to_bus_.clear();
+    edge2bus_.clear();
 
     routes_ = std::make_unique<DirectedWeightedGraph<double>>(stops_.size() * 2);
     Graph::VertexId current_vertex_id = {};
     for (const auto& [stop_name, temp]: stops_) {
         routes_->AddEdge({current_vertex_id + stops_size, current_vertex_id, bus_wait_time});
 
-        vertex_to_stop_.push_back(stop_name);
+        vertex2stop_.push_back(stop_name);
         stop_to_vertex_.insert({stop_name, current_vertex_id++});
     }
 
@@ -191,7 +201,7 @@ void DataBase::BuildRoutes() {
     for (const auto& [edge_bus_number, edge_span_count, edge]: edge_hash) {
         if (edge_span_count == 0) continue;
         routes_->AddEdge(edge);
-        edge_to_bus_.emplace_back(edge_bus_number, edge_span_count);
+        edge2bus_.emplace_back(edge_bus_number, edge_span_count);
     }
 
     router_ = std::make_unique<Router<double>>(*routes_);

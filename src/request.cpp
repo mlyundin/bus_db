@@ -7,12 +7,29 @@
 #include "request.h"
 #include "common.h"
 #include "route.h"
+#include "svg.h"
 
 using namespace Json;
 
 namespace
 {
 using namespace busdb;
+
+std::string MapToStr(const Svg::Document& map) {
+    std::ostringstream ss;
+    ss << map;
+
+    std::string temp = ss.str(), res;
+    res.reserve(temp.size());
+    for (auto c: temp) {
+        if (c == '"' || c == '\\') {
+            res.push_back('\\');
+        }
+        res.push_back(c);
+    }
+
+    return res;
+}
 
 struct BusData: AbstractData {
     std::string name;
@@ -74,9 +91,9 @@ struct StopData: AbstractData {
 };
 
 struct RouteData: AbstractData {
-    std::tuple<double, std::list<DataBase::RouteItem>> data;
+    std::tuple<double, DataBase::StopsRoute, Svg::Document> data;
 
-    RouteData(int request_id, decltype(data) data) :
+    RouteData(int request_id, decltype(data)&& data) :
             AbstractData(request_id), data(move(data)) {
     }
 
@@ -86,7 +103,7 @@ struct RouteData: AbstractData {
     }
 
     Object toJsonObject() const override {
-        const auto& [total_time, route] = data;
+        const auto& [total_time, route, map] = data;
         if (total_time < 0) return {{"error_message", "not found" }};
 
         Object res  = {{"total_time",  total_time}};
@@ -103,6 +120,8 @@ struct RouteData: AbstractData {
         }
 
         res["items"] = move(items);
+        res["map"] = MapToStr(map);
+
         return res;
     }
 
@@ -124,19 +143,7 @@ struct MapData: AbstractData {
     }
 
     Object toJsonObject() const override {
-        std::ostringstream ss;
-        ss << map;
-
-        std::string temp = ss.str(), res;
-        res.reserve(temp.size());
-        for (auto c: temp) {
-            if (c == '"' || c == '\\') {
-                res.push_back('\\');
-            }
-            res.push_back(c);
-        }
-
-        return {{"map", res}};
+        return {{"map", MapToStr(map)}};
     }
 };
 

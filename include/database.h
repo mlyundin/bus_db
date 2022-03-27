@@ -33,6 +33,7 @@ public:
     };
 
     using RouteItem = std::tuple<DataBase::RouteItemType, double, std::string_view, int>;
+    using StopsRoute = std::vector<RouteItem>;
 
     DataBase();
 
@@ -52,7 +53,7 @@ public:
     std::optional<std::set<std::string_view>> GetStopBuses(
             std::string_view stop) const;
 
-    std::tuple<double, std::list<RouteItem>>
+    std::tuple<double, StopsRoute, Svg::Document>
     GetRoute(const std::string& from, const std::string& to) const;
 
     void SetRouteSettings(const Json::Object& in_data);
@@ -77,10 +78,10 @@ private:
     std::unique_ptr<Graph::DirectedWeightedGraph<double>> routes_ = nullptr;
     std::unique_ptr<Graph::Router<double>> router_ = nullptr;
 
-    std::vector<std::string_view> vertex_to_stop_;
+    std::vector<std::string_view> vertex2stop_;
     std::unordered_map<std::string_view, Graph::VertexId> stop_to_vertex_;
 
-    std::vector<std::pair<std::string_view, int>> edge_to_bus_;
+    std::vector<std::pair<std::string_view, int>> edge2bus_;
 
     Graph::VertexId GetWaitStopVertexId(std::string_view stop) const;
 };
